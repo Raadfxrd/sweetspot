@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/room_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../acoustic/models/sweet_spot_result.dart';
 import '../models/room.dart';
 import '../models/room_state.dart';
-import '../../acoustic/models/sweet_spot_result.dart';
-import '../../../core/theme/app_theme.dart';
+import '../providers/room_provider.dart';
 
 class RoomSetupPanel extends ConsumerStatefulWidget {
   const RoomSetupPanel({super.key});
@@ -48,7 +49,8 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
         (_lastSeenRoom!.widthMeters != room.widthMeters ||
             _lastSeenRoom!.lengthMeters != room.lengthMeters ||
             _lastSeenRoom!.heightMeters != room.heightMeters) &&
-        _widthController.text == _lastSeenRoom!.widthMeters.toStringAsFixed(1) &&
+        _widthController.text ==
+            _lastSeenRoom!.widthMeters.toStringAsFixed(1) &&
         _lengthController.text ==
             _lastSeenRoom!.lengthMeters.toStringAsFixed(1) &&
         _heightController.text ==
@@ -160,10 +162,15 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
     final length = double.tryParse(_lengthController.text);
     final height = double.tryParse(_heightController.text);
 
-    if (width != null && width > 0 &&
-        length != null && length > 0 &&
-        height != null && height > 0) {
-      ref.read(roomProvider.notifier).updateRoom(
+    if (width != null &&
+        width > 0 &&
+        length != null &&
+        length > 0 &&
+        height != null &&
+        height > 0) {
+      ref
+          .read(roomProvider.notifier)
+          .updateRoom(
             currentRoom.copyWith(
               widthMeters: width.clamp(1.0, 30.0),
               lengthMeters: length.clamp(1.0, 30.0),
@@ -178,8 +185,8 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
     final accuracyColor = result.isOptimal
         ? AppTheme.sweetSpotGreen
         : result.triangleAccuracy >= 0.6
-            ? AppTheme.sweetSpotYellow
-            : AppTheme.sweetSpotRed;
+        ? AppTheme.sweetSpotYellow
+        : AppTheme.sweetSpotRed;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,10 +358,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
           ),
           Text(
             value,
@@ -380,19 +384,28 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
           onPressed: () =>
               ref.read(roomProvider.notifier).suggestOptimalListeningPosition(),
           icon: const Icon(Icons.auto_awesome, size: 14),
-          label: const Text('Suggest Sweet Spot', style: TextStyle(fontSize: 12)),
+          label: const Text(
+            'Suggest Sweet Spot',
+            style: TextStyle(fontSize: 12),
+          ),
         ),
         const SizedBox(height: 8),
         ElevatedButton.icon(
-          onPressed: () =>
-              ref.read(roomProvider.notifier).autoPlaceSpeakers(),
+          onPressed: () => ref.read(roomProvider.notifier).autoPlaceSpeakers(),
           icon: const Icon(Icons.speaker, size: 14),
-          label: const Text('Auto Place Speakers', style: TextStyle(fontSize: 12)),
+          label: const Text(
+            'Auto Place Speakers',
+            style: TextStyle(fontSize: 12),
+          ),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => ref.read(roomProvider.notifier).resetToDefaults(),
-          icon: const Icon(Icons.refresh, size: 14, color: AppTheme.textSecondary),
+          icon: const Icon(
+            Icons.refresh,
+            size: 14,
+            color: AppTheme.textSecondary,
+          ),
           label: const Text(
             'Reset',
             style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),

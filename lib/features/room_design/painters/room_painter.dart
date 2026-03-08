@@ -1,10 +1,12 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../acoustic/models/reflection_point.dart';
+import '../../acoustic/models/sweet_spot_result.dart';
 import '../../room_design/models/room_state.dart';
 import '../../room_design/models/speaker.dart';
-import '../../acoustic/models/sweet_spot_result.dart';
-import '../../acoustic/models/reflection_point.dart';
-import '../../../core/theme/app_theme.dart';
 
 class RoomPainter extends CustomPainter {
   final RoomState roomState;
@@ -144,21 +146,11 @@ class RoomPainter extends CustomPainter {
     );
 
     for (var i = 1; i <= roomWidthM.floor(); i++) {
-      _drawText(
-        canvas,
-        '${i}m',
-        Offset(i * scale - 8, roomH + 4),
-        textStyle,
-      );
+      _drawText(canvas, '${i}m', Offset(i * scale - 8, roomH + 4), textStyle);
     }
 
     for (var i = 1; i <= roomLengthM.floor(); i++) {
-      _drawText(
-        canvas,
-        '${i}m',
-        Offset(-20, i * scale - 6),
-        textStyle,
-      );
+      _drawText(canvas, '${i}m', Offset(-20, i * scale - 6), textStyle);
     }
   }
 
@@ -183,8 +175,7 @@ class RoomPainter extends CustomPainter {
           AppTheme.sweetSpotRed.withAlpha(0),
         ],
         stops: const [0.0, 0.7, 1.0],
-      ).createShader(
-          Rect.fromCircle(center: lpOffset, radius: fairRadius));
+      ).createShader(Rect.fromCircle(center: lpOffset, radius: fairRadius));
     canvas.drawCircle(lpOffset, fairRadius, redPaint);
 
     // Middle zone (acceptable - yellow)
@@ -196,8 +187,7 @@ class RoomPainter extends CustomPainter {
           AppTheme.sweetSpotYellow.withAlpha(0),
         ],
         stops: const [0.0, 0.7, 1.0],
-      ).createShader(
-          Rect.fromCircle(center: lpOffset, radius: goodRadius));
+      ).createShader(Rect.fromCircle(center: lpOffset, radius: goodRadius));
     canvas.drawCircle(lpOffset, goodRadius, yellowPaint);
 
     // Inner zone (optimal - green)
@@ -209,8 +199,7 @@ class RoomPainter extends CustomPainter {
           AppTheme.sweetSpotGreen.withAlpha(0),
         ],
         stops: const [0.0, 0.5, 1.0],
-      ).createShader(
-          Rect.fromCircle(center: lpOffset, radius: optimalRadius));
+      ).createShader(Rect.fromCircle(center: lpOffset, radius: optimalRadius));
     canvas.drawCircle(lpOffset, optimalRadius, greenPaint);
   }
 
@@ -235,12 +224,27 @@ class RoomPainter extends CustomPainter {
     _drawDashedLine(canvas, rOffset, lpOffset, linePaint);
 
     // Draw distance labels on lines
-    _drawDistanceLabel(canvas, lOffset, lpOffset,
-        sweetSpotResult.leftDistance, AppTheme.leftSpeaker);
-    _drawDistanceLabel(canvas, rOffset, lpOffset,
-        sweetSpotResult.rightDistance, AppTheme.rightSpeaker);
-    _drawDistanceLabel(canvas, lOffset, rOffset,
-        sweetSpotResult.speakerSpacing, AppTheme.textSecondary);
+    _drawDistanceLabel(
+      canvas,
+      lOffset,
+      lpOffset,
+      sweetSpotResult.leftDistance,
+      AppTheme.leftSpeaker,
+    );
+    _drawDistanceLabel(
+      canvas,
+      rOffset,
+      lpOffset,
+      sweetSpotResult.rightDistance,
+      AppTheme.rightSpeaker,
+    );
+    _drawDistanceLabel(
+      canvas,
+      lOffset,
+      rOffset,
+      sweetSpotResult.speakerSpacing,
+      AppTheme.textSecondary,
+    );
   }
 
   void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
@@ -258,8 +262,7 @@ class RoomPainter extends CustomPainter {
     var drawing = true;
 
     while (traveled < length) {
-      final segLen =
-          drawing ? dashLength : gapLength;
+      final segLen = drawing ? dashLength : gapLength;
       final nextTraveled = math.min(traveled + segLen, length);
 
       if (drawing) {
@@ -318,10 +321,14 @@ class RoomPainter extends CustomPainter {
 
     for (final rp in reflectionPoints) {
       final pt = Offset(rp.position.x * scale, rp.position.y * scale);
-      final speakerPt =
-          Offset(rp.speakerPosition.x * scale, rp.speakerPosition.y * scale);
-      final listenerPt =
-          Offset(rp.listenerPosition.x * scale, rp.listenerPosition.y * scale);
+      final speakerPt = Offset(
+        rp.speakerPosition.x * scale,
+        rp.speakerPosition.y * scale,
+      );
+      final listenerPt = Offset(
+        rp.listenerPosition.x * scale,
+        rp.listenerPosition.y * scale,
+      );
 
       final key =
           '${rp.wall.name}_${rp.speakerPosition.x.toStringAsFixed(2)}_${rp.speakerPosition.y.toStringAsFixed(2)}';
@@ -341,11 +348,15 @@ class RoomPainter extends CustomPainter {
         ..strokeWidth = 1.5
         ..style = PaintingStyle.stroke;
       canvas.drawLine(
-          Offset(pt.dx - 4, pt.dy - 4), Offset(pt.dx + 4, pt.dy + 4),
-          crossPaint);
+        Offset(pt.dx - 4, pt.dy - 4),
+        Offset(pt.dx + 4, pt.dy + 4),
+        crossPaint,
+      );
       canvas.drawLine(
-          Offset(pt.dx + 4, pt.dy - 4), Offset(pt.dx - 4, pt.dy + 4),
-          crossPaint);
+        Offset(pt.dx + 4, pt.dy - 4),
+        Offset(pt.dx - 4, pt.dy + 4),
+        crossPaint,
+      );
     }
   }
 

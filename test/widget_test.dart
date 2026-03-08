@@ -5,22 +5,14 @@ import 'package:sweetspot/app.dart';
 
 void main() {
   testWidgets('App renders without crashing', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: SweetspotApp(),
-      ),
-    );
+    await tester.pumpWidget(const ProviderScope(child: SweetspotApp()));
 
     // Verify the app bar title is rendered
     expect(find.text('SWEETSPOT'), findsOneWidget);
   });
 
   testWidgets('Room canvas is shown', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: SweetspotApp(),
-      ),
-    );
+    await tester.pumpWidget(const ProviderScope(child: SweetspotApp()));
 
     await tester.pump();
 

@@ -21,8 +21,7 @@ class SweetSpotResult {
     required this.feedback,
   });
 
-  double get averageListeningDistance =>
-      (leftDistance + rightDistance) / 2;
+  double get averageListeningDistance => (leftDistance + rightDistance) / 2;
 
   double get symmetryRatio {
     if (rightDistance == 0) return 0;

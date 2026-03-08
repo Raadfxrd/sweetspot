@@ -52,7 +52,7 @@ class AppTheme {
           letterSpacing: 1.2,
         ),
       ),
-      cardTheme: const CardTheme(
+      cardTheme: const CardThemeData(
         color: surfaceVariant,
         elevation: 4,
         margin: EdgeInsets.zero,
@@ -74,34 +74,44 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(color: textSecondary, fontSize: 12),
         hintStyle: const TextStyle(color: textSecondary, fontSize: 12),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: textPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: gridLine,
-        thickness: 1,
-      ),
+      dividerTheme: const DividerThemeData(color: gridLine, thickness: 1),
       textTheme: const TextTheme(
         titleLarge: TextStyle(
-            color: textPrimary, fontSize: 18, fontWeight: FontWeight.w600),
+          color: textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
         titleMedium: TextStyle(
-            color: textPrimary, fontSize: 16, fontWeight: FontWeight.w500),
+          color: textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
         titleSmall: TextStyle(
-            color: textSecondary, fontSize: 14, fontWeight: FontWeight.w500),
+          color: textSecondary,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
         bodyLarge: TextStyle(color: textPrimary, fontSize: 14),
         bodyMedium: TextStyle(color: textSecondary, fontSize: 13),
         bodySmall: TextStyle(color: textSecondary, fontSize: 11),
         labelLarge: TextStyle(
-            color: highlight, fontSize: 12, fontWeight: FontWeight.w600),
+          color: highlight,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
         labelMedium: TextStyle(color: textSecondary, fontSize: 11),
         labelSmall: TextStyle(color: textSecondary, fontSize: 10),
       ),

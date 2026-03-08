@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sweetspot/features/acoustic/models/reflection_point.dart';
+import 'package:sweetspot/features/acoustic/services/reflection_calculator.dart';
+import 'package:sweetspot/features/room_design/models/listening_position.dart';
 import 'package:sweetspot/features/room_design/models/room.dart';
 import 'package:sweetspot/features/room_design/models/room_position.dart';
 import 'package:sweetspot/features/room_design/models/speaker.dart';
-import 'package:sweetspot/features/room_design/models/listening_position.dart';
-import 'package:sweetspot/features/acoustic/services/reflection_calculator.dart';
-import 'package:sweetspot/features/acoustic/models/reflection_point.dart';
 
 void main() {
   const calculator = ReflectionCalculator();

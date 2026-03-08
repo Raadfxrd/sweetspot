@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../widgets/room_canvas.dart';
 import '../widgets/room_setup_panel.dart';
-import '../../../core/theme/app_theme.dart';
 
 class RoomDesignScreen extends ConsumerWidget {
   const RoomDesignScreen({super.key});
@@ -39,9 +40,7 @@ class RoomDesignScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: isWide
-          ? _buildWideLayout()
-          : _buildNarrowLayout(context),
+      body: isWide ? _buildWideLayout() : _buildNarrowLayout(context),
     );
   }
 
@@ -49,10 +48,7 @@ class RoomDesignScreen extends ConsumerWidget {
     return const Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 260,
-          child: RoomSetupPanel(),
-        ),
+        SizedBox(width: 260, child: RoomSetupPanel()),
         VerticalDivider(width: 1, color: AppTheme.gridLine),
         Expanded(child: RoomCanvas()),
       ],
@@ -63,15 +59,10 @@ class RoomDesignScreen extends ConsumerWidget {
     return Column(
       children: [
         const Expanded(child: RoomCanvas()),
-        Container(
-          height: 1,
-          color: AppTheme.gridLine,
-        ),
-        SizedBox(
+        Container(height: 1, color: AppTheme.gridLine),
+        const SizedBox(
           height: 320,
-          child: SingleChildScrollView(
-            child: const RoomSetupPanel(),
-          ),
+          child: SingleChildScrollView(child: RoomSetupPanel()),
         ),
       ],
     );
@@ -102,24 +93,21 @@ class RoomDesignScreen extends ConsumerWidget {
               _HelpItem(
                 icon: Icons.change_history,
                 title: 'Stereo Triangle',
-                description:
-                    'The dashed triangle shows the stereo geometry. '
+                description: 'The dashed triangle shows the stereo geometry. '
                     'An equilateral triangle gives optimal stereo imaging.',
               ),
               SizedBox(height: 12),
               _HelpItem(
                 icon: Icons.blur_on,
                 title: 'Sweet Spot Heatmap',
-                description:
-                    'Green = optimal stereo imaging zone, '
+                description: 'Green = optimal stereo imaging zone, '
                     'Yellow = acceptable, Red = poor imaging.',
               ),
               SizedBox(height: 12),
               _HelpItem(
                 icon: Icons.waves,
                 title: 'Reflection Points',
-                description:
-                    'Orange markers show where early reflections '
+                description: 'Orange markers show where early reflections '
                     'hit the walls. Place acoustic panels here.',
               ),
               SizedBox(height: 12),
@@ -136,7 +124,10 @@ class RoomDesignScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it', style: TextStyle(color: AppTheme.highlight)),
+            child: const Text(
+              'Got it',
+              style: TextStyle(color: AppTheme.highlight),
+            ),
           ),
         ],
       ),

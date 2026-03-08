@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sweetspot/features/room_design/models/room_position.dart';
 import 'package:sweetspot/features/room_design/models/room.dart';
+import 'package:sweetspot/features/room_design/models/room_position.dart';
 
 void main() {
   group('RoomPosition', () {
@@ -54,8 +54,7 @@ void main() {
     });
 
     test('volume calculates width * length * height', () {
-      const room = Room(
-          widthMeters: 4.0, lengthMeters: 5.0, heightMeters: 3.0);
+      const room = Room(widthMeters: 4.0, lengthMeters: 5.0, heightMeters: 3.0);
       expect(room.volume, equals(60.0));
     });
 

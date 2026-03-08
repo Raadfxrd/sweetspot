@@ -1,7 +1,7 @@
+import '../../room_design/models/listening_position.dart';
 import '../../room_design/models/room.dart';
 import '../../room_design/models/room_position.dart';
 import '../../room_design/models/speaker.dart';
-import '../../room_design/models/listening_position.dart';
 import '../models/reflection_point.dart';
 
 class ReflectionCalculator {
@@ -43,12 +43,14 @@ class ReflectionCalculator {
       roomLength: room.lengthMeters,
     );
     if (leftRefl != null) {
-      results.add(ReflectionPoint(
-        wall: ReflectionWall.left,
-        position: leftRefl,
-        speakerPosition: speaker,
-        listenerPosition: listener,
-      ));
+      results.add(
+        ReflectionPoint(
+          wall: ReflectionWall.left,
+          position: leftRefl,
+          speakerPosition: speaker,
+          listenerPosition: listener,
+        ),
+      );
     }
 
     // Right wall (x = roomWidth)
@@ -59,12 +61,14 @@ class ReflectionCalculator {
       roomLength: room.lengthMeters,
     );
     if (rightRefl != null) {
-      results.add(ReflectionPoint(
-        wall: ReflectionWall.right,
-        position: rightRefl,
-        speakerPosition: speaker,
-        listenerPosition: listener,
-      ));
+      results.add(
+        ReflectionPoint(
+          wall: ReflectionWall.right,
+          position: rightRefl,
+          speakerPosition: speaker,
+          listenerPosition: listener,
+        ),
+      );
     }
 
     // Front wall (y = 0)
@@ -75,12 +79,14 @@ class ReflectionCalculator {
       roomWidth: room.widthMeters,
     );
     if (frontRefl != null) {
-      results.add(ReflectionPoint(
-        wall: ReflectionWall.front,
-        position: frontRefl,
-        speakerPosition: speaker,
-        listenerPosition: listener,
-      ));
+      results.add(
+        ReflectionPoint(
+          wall: ReflectionWall.front,
+          position: frontRefl,
+          speakerPosition: speaker,
+          listenerPosition: listener,
+        ),
+      );
     }
 
     // Back wall (y = roomLength)
@@ -91,12 +97,14 @@ class ReflectionCalculator {
       roomWidth: room.widthMeters,
     );
     if (backRefl != null) {
-      results.add(ReflectionPoint(
-        wall: ReflectionWall.back,
-        position: backRefl,
-        speakerPosition: speaker,
-        listenerPosition: listener,
-      ));
+      results.add(
+        ReflectionPoint(
+          wall: ReflectionWall.back,
+          position: backRefl,
+          speakerPosition: speaker,
+          listenerPosition: listener,
+        ),
+      );
     }
 
     return results;
@@ -117,7 +125,8 @@ class ReflectionCalculator {
     if (dx.abs() < 1e-9) return null; // Parallel to wall
 
     final t = (wallX - mirroredX) / dx;
-    if (t < 0 || t > 1) return null; // Intersection not between source and listener
+    if (t < 0 || t > 1)
+      return null; // Intersection not between source and listener
 
     final y = speaker.y + t * (listener.y - speaker.y);
 

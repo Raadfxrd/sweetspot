@@ -1,11 +1,13 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/room_provider.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../models/room_position.dart';
 import '../models/room_state.dart';
 import '../painters/room_painter.dart';
-import '../../../core/theme/app_theme.dart';
+import '../providers/room_provider.dart';
 
 class RoomCanvas extends ConsumerStatefulWidget {
   const RoomCanvas({super.key});
@@ -47,8 +49,12 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: GestureDetector(
-                  onPanStart: (details) =>
-                      _onPanStart(details, roomState, canvasWidth, canvasHeight),
+                  onPanStart: (details) => _onPanStart(
+                    details,
+                    roomState,
+                    canvasWidth,
+                    canvasHeight,
+                  ),
                   onPanUpdate: (details) =>
                       _onPanUpdate(details, canvasWidth, canvasHeight),
                   onPanEnd: (_) => _onPanEnd(),
@@ -111,22 +117,21 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
               icon: Icons.waves,
               label: 'Reflections',
               active: _showReflections,
-              onTap: () =>
-                  setState(() => _showReflections = !_showReflections),
+              onTap: () => setState(() => _showReflections = !_showReflections),
             ),
             const SizedBox(width: 16),
             const _Divider(),
             const SizedBox(width: 16),
             _ZoomButton(
               icon: Icons.zoom_in,
-              onTap: () => setState(
-                  () => _scale = (_scale * 1.2).clamp(30.0, 200.0)),
+              onTap: () =>
+                  setState(() => _scale = (_scale * 1.2).clamp(30.0, 200.0)),
             ),
             const SizedBox(width: 4),
             _ZoomButton(
               icon: Icons.zoom_out,
-              onTap: () => setState(
-                  () => _scale = (_scale / 1.2).clamp(30.0, 200.0)),
+              onTap: () =>
+                  setState(() => _scale = (_scale / 1.2).clamp(30.0, 200.0)),
             ),
             const SizedBox(width: 16),
             _ZoomButton(
@@ -179,10 +184,7 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     if (_activeDrag == null) return;
 
     final localPos = details.localPosition;
-    final roomPos = RoomPosition(
-      localPos.dx / _scale,
-      localPos.dy / _scale,
-    );
+    final roomPos = RoomPosition(localPos.dx / _scale, localPos.dy / _scale);
 
     final notifier = ref.read(roomProvider.notifier);
 
@@ -232,9 +234,7 @@ class _ToolbarButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: active
-              ? AppTheme.highlight.withAlpha(30)
-              : Colors.transparent,
+          color: active ? AppTheme.highlight.withAlpha(30) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: active ? AppTheme.highlight : AppTheme.textSecondary,
@@ -279,8 +279,10 @@ class _ZoomButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.primary.withAlpha(80),
           borderRadius: BorderRadius.circular(6),
-          border:
-              Border.all(color: AppTheme.textSecondary.withAlpha(80), width: 0.5),
+          border: Border.all(
+            color: AppTheme.textSecondary.withAlpha(80),
+            width: 0.5,
+          ),
         ),
         child: Icon(icon, size: 16, color: AppTheme.textSecondary),
       ),
@@ -293,10 +295,6 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 20,
-      color: AppTheme.gridLine,
-    );
+    return Container(width: 1, height: 20, color: AppTheme.gridLine);
   }
 }

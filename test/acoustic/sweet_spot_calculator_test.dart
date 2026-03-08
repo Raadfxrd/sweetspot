@@ -1,10 +1,11 @@
 import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sweetspot/features/acoustic/models/sweet_spot_result.dart';
+import 'package:sweetspot/features/acoustic/services/sweet_spot_calculator.dart';
+import 'package:sweetspot/features/room_design/models/listening_position.dart';
 import 'package:sweetspot/features/room_design/models/room_position.dart';
 import 'package:sweetspot/features/room_design/models/speaker.dart';
-import 'package:sweetspot/features/room_design/models/listening_position.dart';
-import 'package:sweetspot/features/acoustic/services/sweet_spot_calculator.dart';
-import 'package:sweetspot/features/acoustic/models/sweet_spot_result.dart';
 
 void main() {
   const calculator = SweetSpotCalculator();
@@ -88,14 +89,8 @@ void main() {
 
     test('accuracy is zero when speakers overlap', () {
       final pos = const RoomPosition(2.5, 1.0);
-      final left = Speaker(
-        channel: SpeakerChannel.left,
-        position: pos,
-      );
-      final right = Speaker(
-        channel: SpeakerChannel.right,
-        position: pos,
-      );
+      final left = Speaker(channel: SpeakerChannel.left, position: pos);
+      final right = Speaker(channel: SpeakerChannel.right, position: pos);
       final listener = const ListeningPosition(
         position: RoomPosition(2.5, 3.5),
       );
@@ -148,7 +143,34 @@ void main() {
       final expectedY = spacing * (math.sqrt(3) / 2);
 
       expect(suggested.x, closeTo(spacing / 2, 0.001));
-      expect(suggested.y.abs(), closeTo(expectedY, 0.001));
+      expect(suggested.y, greaterThan(0));
+      expect(suggested.y, closeTo(expectedY, 0.001));
+    });
+
+    test('toe-in suggestions are symmetric for symmetric geometry', () {
+      const spacing = 2.0;
+      final height = spacing * (math.sqrt(3) / 2);
+
+      final left = Speaker(
+        channel: SpeakerChannel.left,
+        position: const RoomPosition(0.0, 0.0),
+      );
+      final right = Speaker(
+        channel: SpeakerChannel.right,
+        position: const RoomPosition(spacing, 0.0),
+      );
+      final listener = ListeningPosition(
+        position: RoomPosition(spacing / 2, height),
+      );
+
+      final result = calculator.calculate(
+        leftSpeaker: left,
+        rightSpeaker: right,
+        listeningPosition: listener,
+      );
+
+      expect(result.suggestedToeInLeft, closeTo(30.0, 0.1));
+      expect(result.suggestedToeInRight, closeTo(30.0, 0.1));
     });
 
     test('feedback contains meaningful text', () {

@@ -1,6 +1,6 @@
+import 'listening_position.dart';
 import 'room.dart';
 import 'speaker.dart';
-import 'listening_position.dart';
 
 class RoomState {
   final Room room;

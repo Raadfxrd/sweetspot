@@ -22,6 +22,7 @@ class Room {
   }
 
   double get area => widthMeters * lengthMeters;
+
   double get volume => widthMeters * lengthMeters * heightMeters;
 
   @override

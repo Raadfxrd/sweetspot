@@ -1,7 +1,8 @@
 import 'dart:math' as math;
+
+import '../../room_design/models/listening_position.dart';
 import '../../room_design/models/room_position.dart';
 import '../../room_design/models/speaker.dart';
-import '../../room_design/models/listening_position.dart';
 import '../models/sweet_spot_result.dart';
 
 class SweetSpotCalculator {
@@ -27,17 +28,9 @@ class SweetSpotCalculator {
       speakerSpacing: speakerSpacing,
     );
 
-    final toeInLeft = _calculateToeIn(
-      speaker: lPos,
-      listener: lpPos,
-      isLeft: true,
-    );
+    final toeInLeft = _calculateToeIn(speaker: lPos, listener: lpPos);
 
-    final toeInRight = _calculateToeIn(
-      speaker: rPos,
-      listener: lpPos,
-      isLeft: false,
-    );
+    final toeInRight = _calculateToeIn(speaker: rPos, listener: lpPos);
 
     final isOptimal = triangleAccuracy >= 0.85 &&
         (leftDist - rightDist).abs() / math.max(leftDist, rightDist) < 0.1;
@@ -88,20 +81,15 @@ class SweetSpotCalculator {
   double _calculateToeIn({
     required RoomPosition speaker,
     required RoomPosition listener,
-    required bool isLeft,
   }) {
     final dx = listener.x - speaker.x;
     final dy = listener.y - speaker.y;
 
-    // Angle from speaker toward listener in degrees
-    final angleToListener = math.atan2(dx, -dy) * 180 / math.pi;
+    // Angle relative to the speaker forward axis (+y in room coordinates).
+    final angleFromForward = math.atan2(dx, dy) * 180 / math.pi;
 
-    // For left speaker: positive toe-in = angled right (toward center)
-    // For right speaker: positive toe-in = angled left (toward center)
-    // Ideal is approximately 30 degrees inward for equilateral triangle
-    final baseToeIn = isLeft ? angleToListener : -angleToListener;
-
-    return baseToeIn.clamp(0.0, 60.0);
+    // Report toe-in as a positive inward magnitude for both speakers.
+    return angleFromForward.abs().clamp(0.0, 60.0);
   }
 
   String _generateFeedback({
@@ -134,9 +122,8 @@ class SweetSpotCalculator {
       messages.add('Speakers too far apart relative to listening distance.');
     }
 
-    final asymmetry = avgListenDist > 0
-        ? (leftDist - rightDist).abs() / avgListenDist
-        : 0.0;
+    final asymmetry =
+        avgListenDist > 0 ? (leftDist - rightDist).abs() / avgListenDist : 0.0;
     if (asymmetry > 0.1) {
       messages.add('Listening position is off-center.');
     }
@@ -161,13 +148,16 @@ class SweetSpotCalculator {
     final len = math.sqrt(dx * dx + dy * dy);
     if (len == 0) return RoomPosition(midX, midY);
 
-    // Perpendicular direction (pointing "into" the room)
-    final perpX = dy / len;
-    final perpY = -dx / len;
+    // Two candidate perpendicular directions; pick the one deeper in-room (+y).
+    final perp1X = dy / len;
+    final perp1Y = -dx / len;
+    final perp2X = -dy / len;
+    final perp2Y = dx / len;
 
-    return RoomPosition(
-      midX + perpX * height,
-      midY + perpY * height,
-    );
+    final useFirst = perp1Y >= perp2Y;
+    final perpX = useFirst ? perp1X : perp2X;
+    final perpY = useFirst ? perp1Y : perp2Y;
+
+    return RoomPosition(midX + perpX * height, midY + perpY * height);
   }
 }

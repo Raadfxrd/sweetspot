@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 class RoomPosition {
   final double x;
@@ -23,12 +22,6 @@ class RoomPosition {
     final dx = x - other.x;
     final dy = y - other.y;
     return math.sqrt(dx * dx + dy * dy);
-  }
-
-  Offset toOffset() => Offset(x, y);
-
-  static RoomPosition fromOffset(Offset offset) {
-    return RoomPosition(offset.dx, offset.dy);
   }
 
   @override
