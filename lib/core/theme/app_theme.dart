@@ -3,39 +3,54 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color background = Color(0xFF0D0D0D);
-  static const Color surface = Color(0xFF1A1A2E);
-  static const Color surfaceVariant = Color(0xFF16213E);
-  static const Color primary = Color(0xFF0F3460);
-  static const Color accent = Color(0xFF533483);
-  static const Color highlight = Color(0xFF00D4FF);
-  static const Color success = Color(0xFF00E676);
-  static const Color warning = Color(0xFFFFD600);
-  static const Color error = Color(0xFFFF1744);
-  static const Color textPrimary = Color(0xFFE0E0E0);
-  static const Color textSecondary = Color(0xFF9E9E9E);
-  static const Color gridLine = Color(0xFF1E2030);
-  static const Color roomBorder = Color(0xFF37474F);
+  // Base neutrals
+  static const Color background = Color(0xFF111214);
+  static const Color surface = Color(0xFF1C1D20);
+  static const Color surfaceVariant = Color(0xFF242528);
+  static const Color primary = Color(0xFF2A2B2F);
+  static const Color border = Color(0xFF35373D);
 
-  static const Color leftSpeaker = Color(0xFF00B0FF);
-  static const Color rightSpeaker = Color(0xFFFF4081);
-  static const Color listeningPos = Color(0xFF69F0AE);
-  static const Color sweetSpotGreen = Color(0xFF00E676);
-  static const Color sweetSpotYellow = Color(0xFFFFD600);
-  static const Color sweetSpotRed = Color(0xFFFF1744);
-  static const Color triangleLine = Color(0xFF40C4FF);
-  static const Color reflectionPoint = Color(0xFFFFAB40);
+  // Accent — a single understated blue-indigo
+  static const Color accent = Color(0xFF4F6EF7);
+  static const Color highlight =
+      Color(0xFF4F6EF7); // alias kept for compatibility
+
+  // Semantic
+  static const Color success = Color(0xFF34C759);
+  static const Color warning = Color(0xFFFF9F0A);
+  static const Color error = Color(0xFFFF453A);
+
+  // Text
+  static const Color textPrimary = Color(0xFFF2F2F7);
+  static const Color textSecondary = Color(0xFF8E8E93);
+  static const Color textTertiary = Color(0xFF48484A);
+
+  // Canvas / room colours (muted, intentional)
+  static const Color gridLine = Color(0xFF2A2B2F);
+  static const Color roomBorder = Color(0xFF48484A);
+  static const Color leftSpeaker = Color(0xFF4F6EF7);
+  static const Color rightSpeaker = Color(0xFFBF5AF2);
+  static const Color listeningPos = Color(0xFF30D158);
+  static const Color triangleLine = Color(0xFF4F6EF7);
+  static const Color reflectionPoint = Color(0xFFFF9F0A);
+
+  // Sweet-spot quality colours
+  static const Color sweetSpotGreen = Color(0xFF34C759);
+  static const Color sweetSpotYellow = Color(0xFFFF9F0A);
+  static const Color sweetSpotRed = Color(0xFFFF453A);
 
   static ThemeData dark() {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
+      fontFamily:
+          'SF Pro Display', // falls back gracefully to system sans-serif
       colorScheme: const ColorScheme.dark(
-        primary: highlight,
+        primary: accent,
         secondary: accent,
         surface: surface,
         error: error,
-        onPrimary: Colors.black,
+        onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: textPrimary,
         onError: Colors.white,
@@ -45,35 +60,41 @@ class AppTheme {
         foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: false,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
         titleTextStyle: TextStyle(
-          color: highlight,
-          fontSize: 20,
+          color: textPrimary,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
+          letterSpacing: -0.3,
         ),
       ),
-      cardTheme: const CardThemeData(
-        color: surfaceVariant,
-        elevation: 4,
+      cardTheme: CardThemeData(
+        color: surface,
+        elevation: 0,
         margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: border, width: 0.5),
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: primary,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: textSecondary),
+          borderSide: const BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: textSecondary, width: 0.5),
+          borderSide: const BorderSide(color: border, width: 0.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: highlight, width: 1.5),
+          borderSide: const BorderSide(color: accent, width: 1.5),
         ),
         labelStyle: const TextStyle(color: textSecondary, fontSize: 12),
-        hintStyle: const TextStyle(color: textSecondary, fontSize: 12),
+        hintStyle: const TextStyle(color: textTertiary, fontSize: 12),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,
@@ -81,39 +102,52 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: textPrimary,
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: gridLine, thickness: 1),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textSecondary,
+          side: const BorderSide(color: border, width: 0.5),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+      ),
+      sliderTheme: const SliderThemeData(
+        activeTrackColor: accent,
+        inactiveTrackColor: primary,
+        thumbColor: Colors.white,
+        overlayColor: Color(0x334F6EF7),
+        trackHeight: 3,
+        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+      ),
+      dividerTheme: const DividerThemeData(color: border, thickness: 0.5),
       textTheme: const TextTheme(
         titleLarge: TextStyle(
-          color: textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
+            color: textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.4),
         titleMedium: TextStyle(
-          color: textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
+            color: textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.3),
         titleSmall: TextStyle(
-          color: textSecondary,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
+            color: textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
         bodyLarge: TextStyle(color: textPrimary, fontSize: 14),
         bodyMedium: TextStyle(color: textSecondary, fontSize: 13),
         bodySmall: TextStyle(color: textSecondary, fontSize: 11),
-        labelLarge: TextStyle(
-          color: highlight,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+        labelLarge:
+            TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w600),
         labelMedium: TextStyle(color: textSecondary, fontSize: 11),
-        labelSmall: TextStyle(color: textSecondary, fontSize: 10),
+        labelSmall: TextStyle(color: textTertiary, fontSize: 10),
       ),
     );
   }

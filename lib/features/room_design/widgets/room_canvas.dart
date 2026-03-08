@@ -36,57 +36,68 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
 
     final room = roomState.room;
 
-    final scale = _calculateAutoScale(context, room);
-
-    final canvasWidth = room.widthMeters * scale;
-    final canvasHeight = room.lengthMeters * scale;
-
-    final roomPainter = RoomPainter(
-      roomState: roomState,
-      sweetSpotResult: sweetSpotResult,
-      reflectionPoints: reflections,
-      recommendedAimingPoint: recommendedAimingPoint,
-      scale: scale,
-      showGrid: _showGrid,
-      showReflections: _showReflections,
-      showTriangle: _showTriangle,
-      showMeasurements: _showMeasurements,
-    );
-
     return Column(
       children: [
         _buildToolbar(),
         Expanded(
-          child: Container(
-            color: AppTheme.background,
-            child: InteractiveViewer(
-              constrained: false,
-              minScale: 0.3,
-              maxScale: 4.0,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: GestureDetector(
-                  onTapUp: (details) =>
-                      _onTapUp(details, roomState, roomPainter),
-                  onPanStart: (details) => _onPanStart(
-                    details,
-                    roomState,
-                    canvasWidth,
-                    canvasHeight,
-                  ),
-                  onPanUpdate: (details) =>
-                      _onPanUpdate(details, canvasWidth, canvasHeight),
-                  onPanEnd: (_) => _onPanEnd(),
-                  child: SizedBox(
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    child: CustomPaint(
-                      painter: roomPainter,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Fill the available box, leaving a uniform padding inset.
+              const padding = 24.0;
+              final availableWidth = constraints.maxWidth - padding * 2;
+              final availableHeight = constraints.maxHeight - padding * 2;
+
+              final scaleX = availableWidth / room.widthMeters;
+              final scaleY = availableHeight / room.lengthMeters;
+              final scale = math.min(scaleX, scaleY);
+
+              final canvasWidth = room.widthMeters * scale;
+              final canvasHeight = room.lengthMeters * scale;
+
+              final roomPainter = RoomPainter(
+                roomState: roomState,
+                sweetSpotResult: sweetSpotResult,
+                reflectionPoints: reflections,
+                recommendedAimingPoint: recommendedAimingPoint,
+                scale: scale,
+                showGrid: _showGrid,
+                showReflections: _showReflections,
+                showTriangle: _showTriangle,
+                showMeasurements: _showMeasurements,
+              );
+
+              return Container(
+                color: AppTheme.background,
+                child: InteractiveViewer(
+                  constrained: false,
+                  minScale: 0.5,
+                  maxScale: 5.0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(padding),
+                    child: Center(
+                      child: GestureDetector(
+                        onTapUp: (details) =>
+                            _onTapUp(details, roomState, roomPainter),
+                        onPanStart: (details) => _onPanStart(
+                          details,
+                          roomState,
+                          canvasWidth,
+                          canvasHeight,
+                        ),
+                        onPanUpdate: (details) =>
+                            _onPanUpdate(details, canvasWidth, canvasHeight),
+                        onPanEnd: (_) => _onPanEnd(),
+                        child: SizedBox(
+                          width: canvasWidth,
+                          height: canvasHeight,
+                          child: CustomPaint(painter: roomPainter),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -95,64 +106,43 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
 
   Widget _buildToolbar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppTheme.surfaceVariant,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ToolbarButton(
-              icon: Icons.grid_3x3,
-              label: 'Grid',
-              active: _showGrid,
-              onTap: () => setState(() => _showGrid = !_showGrid),
-            ),
-            const SizedBox(width: 8),
-            _ToolbarButton(
-              icon: Icons.change_history,
-              label: 'Triangle',
-              active: _showTriangle,
-              onTap: () => setState(() => _showTriangle = !_showTriangle),
-            ),
-            const SizedBox(width: 8),
-            _ToolbarButton(
-              icon: Icons.waves,
-              label: 'Reflections',
-              active: _showReflections,
-              onTap: () => setState(() => _showReflections = !_showReflections),
-            ),
-            const SizedBox(width: 8),
-            _ToolbarButton(
-              icon: Icons.straighten,
-              label: 'Measurements',
-              active: _showMeasurements,
-              onTap: () =>
-                  setState(() => _showMeasurements = !_showMeasurements),
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(bottom: BorderSide(color: AppTheme.border, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          _ToolbarToggle(
+            icon: Icons.grid_4x4_rounded,
+            label: 'Grid',
+            active: _showGrid,
+            onTap: () => setState(() => _showGrid = !_showGrid),
+          ),
+          const SizedBox(width: 4),
+          _ToolbarToggle(
+            icon: Icons.change_history_rounded,
+            label: 'Triangle',
+            active: _showTriangle,
+            onTap: () => setState(() => _showTriangle = !_showTriangle),
+          ),
+          const SizedBox(width: 4),
+          _ToolbarToggle(
+            icon: Icons.spoke_rounded,
+            label: 'Rays',
+            active: _showReflections,
+            onTap: () => setState(() => _showReflections = !_showReflections),
+          ),
+          const SizedBox(width: 4),
+          _ToolbarToggle(
+            icon: Icons.straighten_rounded,
+            label: 'Measures',
+            active: _showMeasurements,
+            onTap: () => setState(() => _showMeasurements = !_showMeasurements),
+          ),
+        ],
       ),
     );
-  }
-
-  double _calculateAutoScale(BuildContext context, room) {
-    // Calculate available space for the canvas
-    final mediaQuery = MediaQuery.of(context);
-    final availableWidth = mediaQuery.size.width > 800
-        ? mediaQuery.size.width -
-            260 -
-            48 // Wide layout: subtract panel width and padding
-        : mediaQuery.size.width - 48; // Narrow layout: just padding
-    final availableHeight =
-        mediaQuery.size.height - 200; // Subtract app bar and toolbar
-
-    // Calculate scale to fit the room in available space
-    final scaleX = availableWidth / room.widthMeters;
-    final scaleY = availableHeight / room.lengthMeters;
-
-    // Use the smaller scale to ensure room fits, with min/max constraints
-    return math.min(scaleX, scaleY).clamp(40.0, 150.0);
   }
 
   void _onPanStart(
@@ -354,13 +344,13 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
 
 enum _DragTarget { leftSpeaker, rightSpeaker, listeningPosition }
 
-class _ToolbarButton extends StatelessWidget {
+class _ToolbarToggle extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _ToolbarButton({
+  const _ToolbarToggle({
     required this.icon,
     required this.label,
     required this.active,
@@ -371,30 +361,28 @@ class _ToolbarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: active ? AppTheme.highlight.withAlpha(30) : Colors.transparent,
+          color: active ? AppTheme.accent.withAlpha(25) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: active ? AppTheme.highlight : AppTheme.textSecondary,
-            width: 0.5,
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 14,
-              color: active ? AppTheme.highlight : AppTheme.textSecondary,
+              size: 13,
+              color: active ? AppTheme.accent : AppTheme.textSecondary,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
-                color: active ? AppTheme.highlight : AppTheme.textSecondary,
+                color: active ? AppTheme.accent : AppTheme.textSecondary,
                 fontSize: 11,
+                fontWeight: active ? FontWeight.w500 : FontWeight.w400,
               ),
             ),
           ],
