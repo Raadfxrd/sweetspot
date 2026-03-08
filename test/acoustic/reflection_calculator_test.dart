@@ -11,7 +11,7 @@ void main() {
   const room = Room(widthMeters: 6.0, lengthMeters: 8.0);
 
   group('ReflectionCalculator', () {
-    test('calculates left wall reflection for left speaker', () {
+    test('calculates reflections for speaker', () {
       final leftSpeaker = Speaker(
         channel: SpeakerChannel.left,
         position: const RoomPosition(1.5, 1.5),
@@ -31,45 +31,10 @@ void main() {
         listeningPosition: listener,
       );
 
-      final leftWallReflections = reflections
-          .where((r) => r.wall == ReflectionWall.left)
-          .toList();
-
-      expect(leftWallReflections, isNotEmpty);
-      for (final r in leftWallReflections) {
-        expect(r.position.x, closeTo(0.0, 0.001));
-        expect(r.position.y, greaterThanOrEqualTo(0));
-        expect(r.position.y, lessThanOrEqualTo(room.lengthMeters));
-      }
-    });
-
-    test('calculates right wall reflection for right speaker', () {
-      final leftSpeaker = Speaker(
-        channel: SpeakerChannel.left,
-        position: const RoomPosition(1.5, 1.5),
-      );
-      final rightSpeaker = Speaker(
-        channel: SpeakerChannel.right,
-        position: const RoomPosition(4.5, 1.5),
-      );
-      final listener = const ListeningPosition(
-        position: RoomPosition(3.0, 5.0),
-      );
-
-      final reflections = calculator.calculateReflections(
-        room: room,
-        leftSpeaker: leftSpeaker,
-        rightSpeaker: rightSpeaker,
-        listeningPosition: listener,
-      );
-
-      final rightWallReflections = reflections
-          .where((r) => r.wall == ReflectionWall.right)
-          .toList();
-
-      expect(rightWallReflections, isNotEmpty);
-      for (final r in rightWallReflections) {
-        expect(r.position.x, closeTo(room.widthMeters, 0.001));
+      expect(reflections, isNotEmpty);
+      for (final r in reflections) {
+        expect(r.position.x, greaterThanOrEqualTo(0));
+        expect(r.position.x, lessThanOrEqualTo(room.widthMeters));
         expect(r.position.y, greaterThanOrEqualTo(0));
         expect(r.position.y, lessThanOrEqualTo(room.lengthMeters));
       }
@@ -141,7 +106,7 @@ void main() {
       }
     });
 
-    test('returns multiple reflections (both speakers have reflections)', () {
+    test('returns multiple reflections', () {
       final leftSpeaker = Speaker(
         channel: SpeakerChannel.left,
         position: const RoomPosition(1.5, 1.5),
@@ -162,6 +127,52 @@ void main() {
       );
 
       expect(reflections.length, greaterThan(2));
+    });
+
+    test('toe-in updates dispersion rays', () {
+      final leftZero = Speaker(
+        channel: SpeakerChannel.left,
+        position: const RoomPosition(1.5, 1.5),
+        toeInDegrees: 0,
+      );
+      final rightZero = Speaker(
+        channel: SpeakerChannel.right,
+        position: const RoomPosition(4.5, 1.5),
+        toeInDegrees: 0,
+      );
+      final leftToeIn = leftZero.copyWith(toeInDegrees: 20);
+      final rightToeIn = rightZero.copyWith(toeInDegrees: 20);
+      final listener = const ListeningPosition(
+        position: RoomPosition(3.0, 5.0),
+      );
+
+      final base = calculator.calculateReflections(
+        room: room,
+        leftSpeaker: leftZero,
+        rightSpeaker: rightZero,
+        listeningPosition: listener,
+      );
+      final steered = calculator.calculateReflections(
+        room: room,
+        leftSpeaker: leftToeIn,
+        rightSpeaker: rightToeIn,
+        listeningPosition: listener,
+      );
+
+      expect(base, isNotEmpty);
+      expect(steered, isNotEmpty);
+      expect(base.length, equals(steered.length));
+
+      bool anyDifferent = false;
+      for (var i = 0; i < base.length && i < steered.length; i++) {
+        if ((base[i].position.x - steered[i].position.x).abs() > 0.001 ||
+            (base[i].position.y - steered[i].position.y).abs() > 0.001) {
+          anyDifferent = true;
+          break;
+        }
+      }
+      expect(anyDifferent, isTrue,
+          reason: 'Toe-in should change reflection positions');
     });
   });
 

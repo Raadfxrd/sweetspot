@@ -53,11 +53,6 @@ void main() {
       expect(room.area, equals(20.0));
     });
 
-    test('volume calculates width * length * height', () {
-      const room = Room(widthMeters: 4.0, lengthMeters: 5.0, heightMeters: 3.0);
-      expect(room.volume, equals(60.0));
-    });
-
     test('copyWith updates dimensions', () {
       const room = Room(widthMeters: 4.0, lengthMeters: 5.0);
       final updated = room.copyWith(widthMeters: 6.0);

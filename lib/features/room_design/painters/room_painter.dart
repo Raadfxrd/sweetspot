@@ -5,13 +5,40 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../acoustic/models/reflection_point.dart';
 import '../../acoustic/models/sweet_spot_result.dart';
+import '../../room_design/models/editable_distance_target.dart';
 import '../../room_design/models/room_state.dart';
 import '../../room_design/models/speaker.dart';
+import '../models/room_position.dart';
+
+class MeasurementHitTarget {
+  final Rect rect;
+  final EditableDistanceTarget target;
+  final double distanceMeters;
+
+  const MeasurementHitTarget({
+    required this.rect,
+    required this.target,
+    required this.distanceMeters,
+  });
+}
+
+class _MeasurementLabelLayout {
+  final String text;
+  final Offset position;
+  final TextStyle style;
+
+  const _MeasurementLabelLayout({
+    required this.text,
+    required this.position,
+    required this.style,
+  });
+}
 
 class RoomPainter extends CustomPainter {
   final RoomState roomState;
   final SweetSpotResult sweetSpotResult;
   final List<ReflectionPoint> reflectionPoints;
+  final RoomPosition recommendedAimingPoint;
   final double scale;
   final bool showGrid;
   final bool showReflections;
@@ -22,6 +49,7 @@ class RoomPainter extends CustomPainter {
     required this.roomState,
     required this.sweetSpotResult,
     required this.reflectionPoints,
+    required this.recommendedAimingPoint,
     required this.scale,
     this.showGrid = true,
     this.showReflections = true,
@@ -65,7 +93,10 @@ class RoomPainter extends CustomPainter {
     // 7. Draw listening position
     _drawListeningPosition(canvas);
 
-    // 8. Draw room border (on top for clean edges)
+    // 8. Draw recommended aiming position
+    drawRecommendedAimingPoint(canvas, recommendedAimingPoint);
+
+    // 9. Draw room border (on top for clean edges)
     _drawRoomBorder(canvas, roomW, roomH);
   }
 
@@ -182,7 +213,7 @@ class RoomPainter extends CustomPainter {
       distToLeftWall,
       measurementPaint,
       dashPaint,
-      'LP→Left',
+      'Focus→Left',
     );
 
     // Distance to right wall (x=width)
@@ -194,7 +225,7 @@ class RoomPainter extends CustomPainter {
       distToRightWall,
       measurementPaint,
       dashPaint,
-      'LP→Right',
+      'Focus→Right',
     );
 
     // Distance to front wall (y=0)
@@ -206,7 +237,7 @@ class RoomPainter extends CustomPainter {
       distToFrontWall,
       measurementPaint,
       dashPaint,
-      'LP→Front',
+      'Focus→Front',
     );
 
     // Distance to back wall (y=length)
@@ -218,7 +249,7 @@ class RoomPainter extends CustomPainter {
       distToBackWall,
       measurementPaint,
       dashPaint,
-      'LP→Back',
+      'Focus→Back',
     );
 
     // Left speaker to walls
@@ -288,7 +319,39 @@ class RoomPainter extends CustomPainter {
     // Draw dashed line
     _drawDashedLine(canvas, start, end, dashPaint);
 
-    // Draw distance label
+    final layout = _measurementLabelLayout(
+      start,
+      end,
+      distanceM,
+      label,
+      _measurementLabelTextStyle(),
+    );
+
+    _drawText(
+      canvas,
+      layout.text,
+      layout.position,
+      layout.style,
+      background: AppTheme.background.withAlpha(200),
+    );
+  }
+
+  TextStyle _measurementLabelTextStyle() {
+    return TextStyle(
+      color: AppTheme.highlight.withAlpha(220),
+      fontSize: 9,
+      fontWeight: FontWeight.w600,
+      fontFamily: 'monospace',
+    );
+  }
+
+  _MeasurementLabelLayout _measurementLabelLayout(
+    Offset start,
+    Offset end,
+    double distanceM,
+    String label,
+    TextStyle style,
+  ) {
     final midX = (start.dx + end.dx) / 2;
     final midY = (start.dy + end.dy) / 2;
 
@@ -296,17 +359,43 @@ class RoomPainter extends CustomPainter {
         ? '${distanceM.toStringAsFixed(2)}m'
         : '${(distanceM * 100).toStringAsFixed(0)}cm';
 
-    _drawText(
-      canvas,
-      '$label: $distLabel',
-      Offset(midX - 20, midY - 10),
-      TextStyle(
-        color: AppTheme.highlight.withAlpha(220),
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
-        fontFamily: 'monospace',
-      ),
-      background: AppTheme.background.withAlpha(200),
+    return _MeasurementLabelLayout(
+      text: '$label: $distLabel',
+      position: Offset(midX - 20, midY - 10),
+      style: style,
+    );
+  }
+
+  MeasurementHitTarget _buildMeasurementHitTarget({
+    required Offset start,
+    required Offset end,
+    required double distanceM,
+    required String label,
+    required TextStyle style,
+    required EditableDistanceTarget target,
+  }) {
+    final layout = _measurementLabelLayout(start, end, distanceM, label, style);
+    final rect =
+        _textBackgroundRect(layout.text, layout.position, layout.style);
+
+    return MeasurementHitTarget(
+      rect: rect,
+      target: target,
+      distanceMeters: distanceM,
+    );
+  }
+
+  Rect _textBackgroundRect(String text, Offset position, TextStyle style) {
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    return Rect.fromLTWH(
+      position.dx - 2,
+      position.dy - 1,
+      textPainter.width + 4,
+      textPainter.height + 2,
     );
   }
 
@@ -414,57 +503,120 @@ class RoomPainter extends CustomPainter {
   }
 
   void _drawReflectionPoints(Canvas canvas) {
-    final paint = Paint()
-      ..color = AppTheme.reflectionPoint
-      ..style = PaintingStyle.fill;
+    // Draw aiming ray for each speaker
+    _drawSpeakerAimingRay(canvas, roomState.leftSpeaker, AppTheme.leftSpeaker);
+    _drawSpeakerAimingRay(
+        canvas, roomState.rightSpeaker, AppTheme.rightSpeaker);
+  }
 
-    final linePaint = Paint()
-      ..color = AppTheme.reflectionPoint.withAlpha(60)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
+  void _drawSpeakerAimingRay(Canvas canvas, Speaker speaker, Color color) {
+    final speakerPt = Offset(
+      speaker.position.x * scale,
+      speaker.position.y * scale,
+    );
 
-    // Group by wall to avoid too many lines; draw one reflection per wall per speaker
-    final drawn = <String>{};
+    // Get forward direction based on toe-in
+    final forward = _speakerForwardAxis(speaker);
 
-    for (final rp in reflectionPoints) {
-      final pt = Offset(rp.position.x * scale, rp.position.y * scale);
-      final speakerPt = Offset(
-        rp.speakerPosition.x * scale,
-        rp.speakerPosition.y * scale,
-      );
-      final listenerPt = Offset(
-        rp.listenerPosition.x * scale,
-        rp.listenerPosition.y * scale,
-      );
+    final rayEndMeters = _computeRayEndpointOnRoomBounds(
+      speaker.position.x,
+      speaker.position.y,
+      forward.$1,
+      forward.$2,
+    );
 
-      final key =
-          '${rp.wall.name}_${rp.speakerPosition.x.toStringAsFixed(2)}_${rp.speakerPosition.y.toStringAsFixed(2)}';
-      if (drawn.contains(key)) continue;
-      drawn.add(key);
+    final rayEndPt = Offset(
+      rayEndMeters.$1 * scale,
+      rayEndMeters.$2 * scale,
+    );
 
-      // Draw reflection path: speaker -> reflection point -> listener
-      canvas.drawLine(speakerPt, pt, linePaint);
-      canvas.drawLine(pt, listenerPt, linePaint);
+    // Draw smooth ray line
+    final rayPaint = Paint()
+      ..color = color.withAlpha(180)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
 
-      // Draw reflection point marker
-      canvas.drawCircle(pt, 4, paint);
+    canvas.drawLine(speakerPt, rayEndPt, rayPaint);
 
-      // Draw a small X mark
-      final crossPaint = Paint()
-        ..color = AppTheme.reflectionPoint
-        ..strokeWidth = 1.5
-        ..style = PaintingStyle.stroke;
-      canvas.drawLine(
-        Offset(pt.dx - 4, pt.dy - 4),
-        Offset(pt.dx + 4, pt.dy + 4),
-        crossPaint,
-      );
-      canvas.drawLine(
-        Offset(pt.dx + 4, pt.dy - 4),
-        Offset(pt.dx - 4, pt.dy + 4),
-        crossPaint,
-      );
+    // Draw direction indicator at ray end
+    const arrowSize = 6.0;
+    final arrowPaint = Paint()
+      ..color = color.withAlpha(200)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    // Calculate perpendicular direction for arrow
+    final perpX = -forward.$2;
+    final perpY = forward.$1;
+
+    final arrowPoint1 = Offset(
+      rayEndPt.dx - forward.$1 * arrowSize - perpX * arrowSize * 0.5,
+      rayEndPt.dy - forward.$2 * arrowSize - perpY * arrowSize * 0.5,
+    );
+    final arrowPoint2 = Offset(
+      rayEndPt.dx - forward.$1 * arrowSize + perpX * arrowSize * 0.5,
+      rayEndPt.dy - forward.$2 * arrowSize + perpY * arrowSize * 0.5,
+    );
+
+    canvas.drawCircle(rayEndPt, 3.0, arrowPaint);
+    canvas.drawLine(arrowPoint1, rayEndPt, rayPaint);
+    canvas.drawLine(arrowPoint2, rayEndPt, rayPaint);
+  }
+
+  (double, double) _computeRayEndpointOnRoomBounds(
+    double startX,
+    double startY,
+    double dirX,
+    double dirY,
+  ) {
+    final roomW = roomState.room.widthMeters;
+    final roomH = roomState.room.lengthMeters;
+
+    const eps = 1e-9;
+    var bestT = double.infinity;
+    var bestX = startX;
+    var bestY = startY;
+
+    void tryHit(double t) {
+      if (t < 0 || !t.isFinite) return;
+
+      final hitX = startX + dirX * t;
+      final hitY = startY + dirY * t;
+
+      final insideX = hitX >= -eps && hitX <= roomW + eps;
+      final insideY = hitY >= -eps && hitY <= roomH + eps;
+      if (!insideX || !insideY) return;
+
+      if (t < bestT) {
+        bestT = t;
+        bestX = hitX.clamp(0.0, roomW).toDouble();
+        bestY = hitY.clamp(0.0, roomH).toDouble();
+      }
     }
+
+    if (dirX.abs() > eps) {
+      tryHit((0.0 - startX) / dirX);
+      tryHit((roomW - startX) / dirX);
+    }
+
+    if (dirY.abs() > eps) {
+      tryHit((0.0 - startY) / dirY);
+      tryHit((roomH - startY) / dirY);
+    }
+
+    return (bestX, bestY);
+  }
+
+  (double, double) _speakerForwardAxis(Speaker speaker) {
+    final toeInRad = speaker.toeInDegrees * math.pi / 180;
+    final xSign = speaker.channel == SpeakerChannel.left ? 1.0 : -1.0;
+    final fx = math.sin(toeInRad) * xSign;
+    final fy = math.cos(toeInRad);
+    final len = math.sqrt(fx * fx + fy * fy);
+    if (len < 1e-9) return (0.0, 1.0);
+    return (fx / len, fy / len);
   }
 
   void _drawSpeaker(Canvas canvas, Speaker speaker) {
@@ -492,6 +644,37 @@ class RoomPainter extends CustomPainter {
       ..strokeWidth = 2;
     canvas.drawCircle(offset, 12, borderPaint);
 
+    // Draw toe-in direction indicator
+    final toeInRadians = (speaker.toeInDegrees * math.pi / 180);
+    final isLeftSpeaker = speaker.channel == SpeakerChannel.left;
+    final directionAngle = isLeftSpeaker ? toeInRadians : -toeInRadians;
+    const arrowLength = 16.0;
+    final arrowEndX = offset.dx + arrowLength * math.sin(directionAngle);
+    final arrowEndY = offset.dy + arrowLength * math.cos(directionAngle);
+
+    final arrowPaint = Paint()
+      ..color = color.withAlpha(220)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(offset, Offset(arrowEndX, arrowEndY), arrowPaint);
+
+    // Draw arrowhead
+    const arrowSize = 3.0;
+    final angle1 = directionAngle + (math.pi * 0.3);
+    final angle2 = directionAngle - (math.pi * 0.3);
+    final arrowTip1 = Offset(
+      arrowEndX - arrowSize * math.sin(angle1),
+      arrowEndY - arrowSize * math.cos(angle1),
+    );
+    final arrowTip2 = Offset(
+      arrowEndX - arrowSize * math.sin(angle2),
+      arrowEndY - arrowSize * math.cos(angle2),
+    );
+
+    canvas.drawLine(Offset(arrowEndX, arrowEndY), arrowTip1, arrowPaint);
+    canvas.drawLine(Offset(arrowEndX, arrowEndY), arrowTip2, arrowPaint);
+
     // Speaker label
     _drawText(
       canvas,
@@ -504,13 +687,13 @@ class RoomPainter extends CustomPainter {
       ),
     );
 
-    // Position label below speaker
+    // Position and toe-in label below speaker
     final posLabel =
-        '(${pos.x.toStringAsFixed(1)}, ${pos.y.toStringAsFixed(1)})';
+        '(${pos.x.toStringAsFixed(1)}, ${pos.y.toStringAsFixed(1)}) • ${speaker.toeInDegrees.toStringAsFixed(0)}°';
     _drawText(
       canvas,
       posLabel,
-      Offset(offset.dx - 22, offset.dy + 16),
+      Offset(offset.dx - 28, offset.dy + 16),
       TextStyle(
         color: color.withAlpha(180),
         fontSize: 9,
@@ -524,25 +707,21 @@ class RoomPainter extends CustomPainter {
     final offset = Offset(pos.x * scale, pos.y * scale);
     const color = AppTheme.listeningPos;
 
-    // Glow
     final glowPaint = Paint()
       ..color = color.withAlpha(40)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     canvas.drawCircle(offset, 20, glowPaint);
 
-    // Outer ring
     final ringPaint = Paint()
       ..color = color.withAlpha(100)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(offset, 18, ringPaint);
 
-    // Body
     final bodyPaint = Paint()
       ..color = color.withAlpha(180)
       ..style = PaintingStyle.fill;
 
-    // Chair/ear icon (triangle pointing up)
     final path = Path();
     path.moveTo(offset.dx, offset.dy - 10);
     path.lineTo(offset.dx - 8, offset.dy + 6);
@@ -550,10 +729,9 @@ class RoomPainter extends CustomPainter {
     path.close();
     canvas.drawPath(path, bodyPaint);
 
-    // LP label
     _drawText(
       canvas,
-      'LP',
+      'Focus',
       Offset(offset.dx - 8, offset.dy + 10),
       const TextStyle(
         color: color,
@@ -592,13 +770,168 @@ class RoomPainter extends CustomPainter {
     textPainter.paint(canvas, position);
   }
 
+  void drawRecommendedAimingPoint(Canvas canvas, RoomPosition aimingPoint) {
+    final offset = Offset(aimingPoint.x * scale, aimingPoint.y * scale);
+    const color = AppTheme.highlight;
+
+    // Outer glow ring
+    final glowPaint = Paint()
+      ..color = color.withAlpha(30)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(offset, 14, glowPaint);
+
+    // Crosshair marker
+    final crosshairPaint = Paint()
+      ..color = color.withAlpha(180)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    const crosshairSize = 10.0;
+    // Horizontal line
+    canvas.drawLine(
+      Offset(offset.dx - crosshairSize, offset.dy),
+      Offset(offset.dx + crosshairSize, offset.dy),
+      crosshairPaint,
+    );
+    // Vertical line
+    canvas.drawLine(
+      Offset(offset.dx, offset.dy - crosshairSize),
+      Offset(offset.dx, offset.dy + crosshairSize),
+      crosshairPaint,
+    );
+
+    // Center dot
+    final centerPaint = Paint()
+      ..color = color.withAlpha(220)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(offset, 3, centerPaint);
+
+    // Label
+    _drawText(
+      canvas,
+      'Aim',
+      Offset(offset.dx - 10, offset.dy + 12),
+      TextStyle(
+        color: color.withAlpha(220),
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        fontFamily: 'monospace',
+      ),
+      background: AppTheme.background.withAlpha(200),
+    );
+  }
+
   @override
   bool shouldRepaint(RoomPainter oldDelegate) {
     return oldDelegate.roomState != roomState ||
+        oldDelegate.sweetSpotResult != sweetSpotResult ||
+        oldDelegate.reflectionPoints != reflectionPoints ||
+        oldDelegate.recommendedAimingPoint != recommendedAimingPoint ||
         oldDelegate.scale != scale ||
         oldDelegate.showGrid != showGrid ||
         oldDelegate.showReflections != showReflections ||
         oldDelegate.showTriangle != showTriangle ||
         oldDelegate.showMeasurements != showMeasurements;
+  }
+
+  List<MeasurementHitTarget> measurementHitTargets() {
+    if (!showMeasurements) return const [];
+
+    final room = roomState.room;
+    final lpPos = roomState.listeningPosition.position;
+    final lSpeakerPos = roomState.leftSpeaker.position;
+    final rSpeakerPos = roomState.rightSpeaker.position;
+    final textStyle = _measurementLabelTextStyle();
+
+    return [
+      _buildMeasurementHitTarget(
+        start: Offset(lpPos.x * scale, lpPos.y * scale),
+        end: Offset(0, lpPos.y * scale),
+        distanceM: lpPos.x,
+        label: 'Focus→Left',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.focus,
+          wall: RoomWall.left,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(lpPos.x * scale, lpPos.y * scale),
+        end: Offset(room.widthMeters * scale, lpPos.y * scale),
+        distanceM: room.widthMeters - lpPos.x,
+        label: 'Focus→Right',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.focus,
+          wall: RoomWall.right,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(lpPos.x * scale, lpPos.y * scale),
+        end: Offset(lpPos.x * scale, 0),
+        distanceM: lpPos.y,
+        label: 'Focus→Front',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.focus,
+          wall: RoomWall.front,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(lpPos.x * scale, lpPos.y * scale),
+        end: Offset(lpPos.x * scale, room.lengthMeters * scale),
+        distanceM: room.lengthMeters - lpPos.y,
+        label: 'Focus→Back',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.focus,
+          wall: RoomWall.back,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(lSpeakerPos.x * scale, lSpeakerPos.y * scale),
+        end: Offset(0, lSpeakerPos.y * scale),
+        distanceM: lSpeakerPos.x,
+        label: 'L→Left',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.leftSpeaker,
+          wall: RoomWall.left,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(lSpeakerPos.x * scale, lSpeakerPos.y * scale),
+        end: Offset(lSpeakerPos.x * scale, 0),
+        distanceM: lSpeakerPos.y,
+        label: 'L→Front',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.leftSpeaker,
+          wall: RoomWall.front,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(rSpeakerPos.x * scale, rSpeakerPos.y * scale),
+        end: Offset(room.widthMeters * scale, rSpeakerPos.y * scale),
+        distanceM: room.widthMeters - rSpeakerPos.x,
+        label: 'R→Right',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.rightSpeaker,
+          wall: RoomWall.right,
+        ),
+      ),
+      _buildMeasurementHitTarget(
+        start: Offset(rSpeakerPos.x * scale, rSpeakerPos.y * scale),
+        end: Offset(rSpeakerPos.x * scale, 0),
+        distanceM: rSpeakerPos.y,
+        label: 'R→Front',
+        style: textStyle,
+        target: const EditableDistanceTarget(
+          entity: MeasuredEntity.rightSpeaker,
+          wall: RoomWall.front,
+        ),
+      ),
+    ];
   }
 }

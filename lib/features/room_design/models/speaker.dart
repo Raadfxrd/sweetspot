@@ -28,5 +28,5 @@ class Speaker {
   String get label => channel == SpeakerChannel.left ? 'L' : 'R';
 
   @override
-  String toString() => 'Speaker($label @ $position, toe-in: ${toeInDegrees}°)';
+  String toString() => 'Speaker($label @ $position, toe-in: $toeInDegrees°)';
 }

@@ -147,42 +147,50 @@ void main() {
       expect(suggested.y, closeTo(expectedY, 0.001));
     });
 
-    test('toe-in suggestions are symmetric for symmetric geometry', () {
-      const spacing = 2.0;
-      final height = spacing * (math.sqrt(3) / 2);
-
-      final left = Speaker(
+    test('manual toe-in does not affect triangle geometry metrics', () {
+      const leftA = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(0.0, 0.0),
+        position: RoomPosition(0.0, 0.0),
+        toeInDegrees: 0,
       );
-      final right = Speaker(
+      const rightA = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(spacing, 0.0),
+        position: RoomPosition(2.0, 0.0),
+        toeInDegrees: 0,
       );
-      final listener = ListeningPosition(
-        position: RoomPosition(spacing / 2, height),
+      final leftB = leftA.copyWith(toeInDegrees: 35);
+      final rightB = rightA.copyWith(toeInDegrees: 35);
+      const listener = ListeningPosition(
+        position: RoomPosition(1.0, 1.732),
       );
 
-      final result = calculator.calculate(
-        leftSpeaker: left,
-        rightSpeaker: right,
+      final a = calculator.calculate(
+        leftSpeaker: leftA,
+        rightSpeaker: rightA,
+        listeningPosition: listener,
+      );
+      final b = calculator.calculate(
+        leftSpeaker: leftB,
+        rightSpeaker: rightB,
         listeningPosition: listener,
       );
 
-      expect(result.suggestedToeInLeft, closeTo(30.0, 0.1));
-      expect(result.suggestedToeInRight, closeTo(30.0, 0.1));
+      expect(a.triangleAccuracy, closeTo(b.triangleAccuracy, 0.0001));
+      expect(a.speakerSpacing, closeTo(b.speakerSpacing, 0.0001));
+      expect(a.leftDistance, closeTo(b.leftDistance, 0.0001));
+      expect(a.rightDistance, closeTo(b.rightDistance, 0.0001));
     });
 
     test('feedback contains meaningful text', () {
-      final left = Speaker(
+      const left = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.0, 1.0),
+        position: RoomPosition(1.0, 1.0),
       );
-      final right = Speaker(
+      const right = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.0, 1.0),
+        position: RoomPosition(4.0, 1.0),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(2.5, 3.5),
       );
 
@@ -198,14 +206,12 @@ void main() {
 
   group('SweetSpotResult', () {
     test('averageListeningDistance is mean of left and right', () {
-      final result = SweetSpotResult(
+      const result = SweetSpotResult(
         leftDistance: 2.0,
         rightDistance: 3.0,
         speakerSpacing: 2.5,
         listeningDistance: 2.5,
         triangleAccuracy: 0.7,
-        suggestedToeInLeft: 15.0,
-        suggestedToeInRight: 15.0,
         isOptimal: false,
         feedback: 'Test',
       );

@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../acoustic/models/reflection_point.dart';
 import '../../acoustic/models/sweet_spot_result.dart';
+import '../../acoustic/services/aiming_calculator.dart';
 import '../../acoustic/services/reflection_calculator.dart';
 import '../../acoustic/services/sweet_spot_calculator.dart';
+import '../models/editable_distance_target.dart';
 import '../models/listening_position.dart';
 import '../models/room.dart';
 import '../models/room_position.dart';
@@ -11,7 +13,7 @@ import '../models/room_state.dart';
 import '../models/speaker.dart';
 
 RoomState _buildDefaultState() {
-  const room = Room(widthMeters: 5.0, lengthMeters: 6.0, heightMeters: 2.4);
+  const room = Room(widthMeters: 5.0, lengthMeters: 6.0);
   // Place left speaker at 1/3 width, 1/5 length
   final leftPos = RoomPosition(room.widthMeters / 3, room.lengthMeters / 5);
   // Place right speaker symmetrically
@@ -24,8 +26,16 @@ RoomState _buildDefaultState() {
 
   return RoomState(
     room: room,
-    leftSpeaker: Speaker(channel: SpeakerChannel.left, position: leftPos),
-    rightSpeaker: Speaker(channel: SpeakerChannel.right, position: rightPos),
+    leftSpeaker: Speaker(
+      channel: SpeakerChannel.left,
+      position: leftPos,
+      toeInDegrees: 0.0,
+    ),
+    rightSpeaker: Speaker(
+      channel: SpeakerChannel.right,
+      position: rightPos,
+      toeInDegrees: 0.0,
+    ),
     listeningPosition: ListeningPosition(position: listenPos),
   );
 }
@@ -35,7 +45,6 @@ class RoomNotifier extends Notifier<RoomState> {
   RoomState build() => _buildDefaultState();
 
   void updateRoom(Room room) {
-    // Keep all entities inside the new room bounds after dimension changes.
     state = state.copyWith(room: room);
     state = state.copyWith(
       leftSpeaker: state.leftSpeaker.copyWith(
@@ -71,49 +80,81 @@ class RoomNotifier extends Notifier<RoomState> {
     );
   }
 
+  void updateLeftSpeakerToeIn(double toeInDegrees) {
+    state = state.copyWith(
+      leftSpeaker: state.leftSpeaker.copyWith(
+        toeInDegrees: toeInDegrees.clamp(0.0, 45.0),
+      ),
+    );
+  }
+
+  void updateRightSpeakerToeIn(double toeInDegrees) {
+    state = state.copyWith(
+      rightSpeaker: state.rightSpeaker.copyWith(
+        toeInDegrees: toeInDegrees.clamp(0.0, 45.0),
+      ),
+    );
+  }
+
   void resetToDefaults() {
     state = _buildDefaultState();
   }
 
-  void autoPlaceSpeakers() {
+  void setDistanceToWall({
+    required MeasuredEntity entity,
+    required RoomWall wall,
+    required double distanceMeters,
+  }) {
     final room = state.room;
-    final leftPos = RoomPosition(room.widthMeters / 3, room.lengthMeters / 5);
-    final rightPos = RoomPosition(
-      room.widthMeters * 2 / 3,
-      room.lengthMeters / 5,
-    );
-    final listenPos = RoomPosition(
-      room.widthMeters / 2,
-      room.lengthMeters * 0.6,
-    );
+    final maxDistance = _maxDistanceForWall(wall);
+    final clampedDistance = distanceMeters.clamp(0.0, maxDistance).toDouble();
 
-    state = state.copyWith(
-      leftSpeaker: state.leftSpeaker.copyWith(position: leftPos),
-      rightSpeaker: state.rightSpeaker.copyWith(position: rightPos),
-      listeningPosition: ListeningPosition(position: listenPos),
-    );
+    RoomPosition move(RoomPosition pos) {
+      switch (wall) {
+        case RoomWall.left:
+          return RoomPosition(clampedDistance, pos.y);
+        case RoomWall.right:
+          return RoomPosition(room.widthMeters - clampedDistance, pos.y);
+        case RoomWall.front:
+          return RoomPosition(pos.x, clampedDistance);
+        case RoomWall.back:
+          return RoomPosition(pos.x, room.lengthMeters - clampedDistance);
+      }
+    }
+
+    switch (entity) {
+      case MeasuredEntity.focus:
+        updateListeningPosition(move(state.listeningPosition.position));
+        break;
+      case MeasuredEntity.leftSpeaker:
+        updateLeftSpeakerPosition(move(state.leftSpeaker.position));
+        break;
+      case MeasuredEntity.rightSpeaker:
+        updateRightSpeakerPosition(move(state.rightSpeaker.position));
+        break;
+    }
   }
 
-  void suggestOptimalListeningPosition() {
-    final calc = const SweetSpotCalculator();
-    final suggestedPos = calc.suggestListeningPosition(
-      state.leftSpeaker,
-      state.rightSpeaker,
-    );
-    final clamped = _clampToRoom(suggestedPos);
-    state = state.copyWith(
-      listeningPosition: ListeningPosition(position: clamped),
-    );
+  double _maxDistanceForWall(RoomWall wall) {
+    final room = state.room;
+    switch (wall) {
+      case RoomWall.left:
+      case RoomWall.right:
+        return room.widthMeters;
+      case RoomWall.front:
+      case RoomWall.back:
+        return room.lengthMeters;
+    }
   }
 
   RoomPosition _clampToRoom(RoomPosition pos) {
     const margin = 0.1;
     final room = state.room;
-    final minX = margin;
+    const minX = margin;
     final maxX = room.widthMeters > margin * 2
         ? room.widthMeters - margin
         : room.widthMeters;
-    final minY = margin;
+    const minY = margin;
     final maxY = room.lengthMeters > margin * 2
         ? room.lengthMeters - margin
         : room.lengthMeters;
@@ -147,5 +188,35 @@ final reflectionPointsProvider = Provider<List<ReflectionPoint>>((ref) {
     leftSpeaker: roomState.leftSpeaker,
     rightSpeaker: roomState.rightSpeaker,
     listeningPosition: roomState.listeningPosition,
+  );
+});
+
+final recommendedAimingPointProvider = Provider<RoomPosition>((ref) {
+  final roomState = ref.watch(roomProvider);
+  const calculator = AimingCalculator();
+  return calculator.calculateRecommendedAimingPoint(
+    leftSpeaker: roomState.leftSpeaker,
+    rightSpeaker: roomState.rightSpeaker,
+    listeningPosition: roomState.listeningPosition,
+  );
+});
+
+final recommendedLeftToeInProvider = Provider<double>((ref) {
+  final roomState = ref.watch(roomProvider);
+  final aimingPoint = ref.watch(recommendedAimingPointProvider);
+  const calculator = AimingCalculator();
+  return calculator.calculateRequiredToeIn(
+    speaker: roomState.leftSpeaker,
+    targetPoint: aimingPoint,
+  );
+});
+
+final recommendedRightToeInProvider = Provider<double>((ref) {
+  final roomState = ref.watch(roomProvider);
+  final aimingPoint = ref.watch(recommendedAimingPointProvider);
+  const calculator = AimingCalculator();
+  return calculator.calculateRequiredToeIn(
+    speaker: roomState.rightSpeaker,
+    targetPoint: aimingPoint,
   );
 });

@@ -45,14 +45,7 @@ class RoomDesignScreen extends ConsumerWidget {
   }
 
   Widget _buildWideLayout() {
-    return const Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(width: 260, child: RoomSetupPanel()),
-        VerticalDivider(width: 1, color: AppTheme.gridLine),
-        Expanded(child: RoomCanvas()),
-      ],
-    );
+    return const _ResizableSidebar();
   }
 
   Widget _buildNarrowLayout(BuildContext context) {
@@ -98,18 +91,46 @@ class RoomDesignScreen extends ConsumerWidget {
               ),
               SizedBox(height: 12),
               _HelpItem(
-                icon: Icons.straighten,
-                title: 'Measurements',
-                description: 'Shows distances from the listening position and '
-                    'speakers to the nearest walls. Use these to position elements '
-                    'and avoid problematic reflections.',
+                icon: Icons.grain,
+                title: 'Speaker Toe-in',
+                description:
+                    'Adjust speaker toe-in angles using the sliders in the right panel. '
+                    'The direction arrow on each speaker shows its current pointing direction. '
+                    'Changes update reflections in real-time.',
+              ),
+              SizedBox(height: 12),
+              _HelpItem(
+                icon: Icons.speaker,
+                title: 'Speaker Specifications',
+                description:
+                    'Define speaker driver configuration in metric units (mm). '
+                    'Choose from presets or customize specifications. '
+                    'All sizes displayed in metric (millimeters, centimeters).',
+              ),
+              SizedBox(height: 12),
+              _HelpItem(
+                icon: Icons.tune,
+                title: 'Advanced Mode',
+                description:
+                    'Enable Advanced Mode to input amplifier power (watts), impedance (ohms), '
+                    'sensitivity (dB), and customize woofer/tweeter specifications. '
+                    'Calculated properties update dynamically.',
               ),
               SizedBox(height: 12),
               _HelpItem(
                 icon: Icons.waves,
                 title: 'Reflection Points',
                 description: 'Orange markers show where early reflections '
-                    'hit the walls. Place acoustic panels here.',
+                    'hit the walls. These update dynamically as you adjust '
+                    'speaker toe-in and specifications. Place acoustic panels to control reflections.',
+              ),
+              SizedBox(height: 12),
+              _HelpItem(
+                icon: Icons.straighten,
+                title: 'Distance Measurements',
+                description:
+                    'Shows distances from listening position and speakers to walls. '
+                    'Click on a measurement label to input a specific value.',
               ),
               SizedBox(height: 12),
               _HelpItem(
@@ -176,6 +197,62 @@ class _HelpItem extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResizableSidebar extends StatefulWidget {
+  const _ResizableSidebar();
+
+  @override
+  State<_ResizableSidebar> createState() => _ResizableSidebarState();
+}
+
+class _ResizableSidebarState extends State<_ResizableSidebar> {
+  double _sidebarWidth = 260; // Default width
+  final double _minWidth = 200; // Minimum width
+  final double _maxWidth = 500; // Maximum width
+  bool _isDragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: _sidebarWidth,
+          child: const RoomSetupPanel(),
+        ),
+        MouseRegion(
+          cursor: SystemMouseCursors.resizeColumn,
+          child: GestureDetector(
+            onHorizontalDragStart: (_) {
+              setState(() => _isDragging = true);
+            },
+            onHorizontalDragUpdate: (details) {
+              setState(() {
+                _sidebarWidth = (_sidebarWidth + details.delta.dx)
+                    .clamp(_minWidth, _maxWidth);
+              });
+            },
+            onHorizontalDragEnd: (_) {
+              setState(() => _isDragging = false);
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: Container(
+                width: 8,
+                color: _isDragging
+                    ? AppTheme.highlight.withAlpha(100)
+                    : AppTheme.gridLine,
+              ),
+            ),
+          ),
+        ),
+        const Expanded(
+          child: RoomCanvas(),
         ),
       ],
     );

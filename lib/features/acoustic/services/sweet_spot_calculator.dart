@@ -28,10 +28,6 @@ class SweetSpotCalculator {
       speakerSpacing: speakerSpacing,
     );
 
-    final toeInLeft = _calculateToeIn(speaker: lPos, listener: lpPos);
-
-    final toeInRight = _calculateToeIn(speaker: rPos, listener: lpPos);
-
     final isOptimal = triangleAccuracy >= 0.85 &&
         (leftDist - rightDist).abs() / math.max(leftDist, rightDist) < 0.1;
 
@@ -48,8 +44,6 @@ class SweetSpotCalculator {
       speakerSpacing: speakerSpacing,
       listeningDistance: listeningDist,
       triangleAccuracy: triangleAccuracy,
-      suggestedToeInLeft: toeInLeft,
-      suggestedToeInRight: toeInRight,
       isOptimal: isOptimal,
       feedback: feedback,
     );
@@ -76,20 +70,6 @@ class SweetSpotCalculator {
     final symmetryScore = math.max(0.0, 1.0 - distanceAsymmetry * 2);
 
     return (ratioScore * 0.6 + symmetryScore * 0.4).clamp(0.0, 1.0);
-  }
-
-  double _calculateToeIn({
-    required RoomPosition speaker,
-    required RoomPosition listener,
-  }) {
-    final dx = listener.x - speaker.x;
-    final dy = listener.y - speaker.y;
-
-    // Angle relative to the speaker forward axis (+y in room coordinates).
-    final angleFromForward = math.atan2(dx, dy) * 180 / math.pi;
-
-    // Report toe-in as a positive inward magnitude for both speakers.
-    return angleFromForward.abs().clamp(0.0, 60.0);
   }
 
   String _generateFeedback({

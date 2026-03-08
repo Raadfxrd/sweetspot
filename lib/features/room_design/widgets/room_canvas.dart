@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../models/editable_distance_target.dart';
 import '../models/room_position.dart';
 import '../models/room_state.dart';
 import '../painters/room_painter.dart';
@@ -23,21 +24,34 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
   bool _showTriangle = true;
   bool _showMeasurements = true;
 
-  static const double _hitRadius = 20.0; // px hit detection radius
+  static const double _hitRadius = 20.0;
+  static const double _measurementHitPadding = 6.0;
 
   @override
   Widget build(BuildContext context) {
     final roomState = ref.watch(roomProvider);
     final sweetSpotResult = ref.watch(sweetSpotResultProvider);
     final reflections = ref.watch(reflectionPointsProvider);
+    final recommendedAimingPoint = ref.watch(recommendedAimingPointProvider);
 
     final room = roomState.room;
 
-    // Auto-scale based on available space
-    final _scale = _calculateAutoScale(context, room);
+    final scale = _calculateAutoScale(context, room);
 
-    final canvasWidth = room.widthMeters * _scale;
-    final canvasHeight = room.lengthMeters * _scale;
+    final canvasWidth = room.widthMeters * scale;
+    final canvasHeight = room.lengthMeters * scale;
+
+    final roomPainter = RoomPainter(
+      roomState: roomState,
+      sweetSpotResult: sweetSpotResult,
+      reflectionPoints: reflections,
+      recommendedAimingPoint: recommendedAimingPoint,
+      scale: scale,
+      showGrid: _showGrid,
+      showReflections: _showReflections,
+      showTriangle: _showTriangle,
+      showMeasurements: _showMeasurements,
+    );
 
     return Column(
       children: [
@@ -52,6 +66,8 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: GestureDetector(
+                  onTapUp: (details) =>
+                      _onTapUp(details, roomState, roomPainter),
                   onPanStart: (details) => _onPanStart(
                     details,
                     roomState,
@@ -65,16 +81,7 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
                     width: canvasWidth,
                     height: canvasHeight,
                     child: CustomPaint(
-                      painter: RoomPainter(
-                        roomState: roomState,
-                        sweetSpotResult: sweetSpotResult,
-                        reflectionPoints: reflections,
-                        scale: _scale,
-                        showGrid: _showGrid,
-                        showReflections: _showReflections,
-                        showTriangle: _showTriangle,
-                        showMeasurements: _showMeasurements,
-                      ),
+                      painter: roomPainter,
                     ),
                   ),
                 ),
@@ -155,15 +162,15 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     double canvasHeight,
   ) {
     final localPos = details.localPosition;
-    final _scale = canvasWidth / roomState.room.widthMeters;
+    final scale = canvasWidth / roomState.room.widthMeters;
 
     final lPos = roomState.leftSpeaker.position;
     final rPos = roomState.rightSpeaker.position;
     final lpPos = roomState.listeningPosition.position;
 
-    final lOffset = Offset(lPos.x * _scale, lPos.y * _scale);
-    final rOffset = Offset(rPos.x * _scale, rPos.y * _scale);
-    final lpOffset = Offset(lpPos.x * _scale, lpPos.y * _scale);
+    final lOffset = Offset(lPos.x * scale, lPos.y * scale);
+    final rOffset = Offset(rPos.x * scale, rPos.y * scale);
+    final lpOffset = Offset(lpPos.x * scale, lpPos.y * scale);
 
     if (_distancePx(localPos, lOffset) <= _hitRadius) {
       _activeDrag = _DragTarget.leftSpeaker;
@@ -182,10 +189,10 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     if (_activeDrag == null) return;
 
     final roomState = ref.read(roomProvider);
-    final _scale = canvasWidth / roomState.room.widthMeters;
+    final scale = canvasWidth / roomState.room.widthMeters;
 
     final localPos = details.localPosition;
-    final roomPos = RoomPosition(localPos.dx / _scale, localPos.dy / _scale);
+    final roomPos = RoomPosition(localPos.dx / scale, localPos.dy / scale);
 
     final notifier = ref.read(roomProvider.notifier);
 
@@ -204,6 +211,138 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
 
   void _onPanEnd() {
     _activeDrag = null;
+  }
+
+  void _onTapUp(
+    TapUpDetails details,
+    RoomState roomState,
+    RoomPainter painter,
+  ) {
+    if (!_showMeasurements) return;
+
+    final tapPos = details.localPosition;
+    final hit = painter
+        .measurementHitTargets()
+        .where((target) =>
+            target.rect.inflate(_measurementHitPadding).contains(tapPos))
+        .fold<MeasurementHitTarget?>(
+      null,
+      (best, current) {
+        if (best == null) return current;
+        final bestDist = _distanceToRectCenter(tapPos, best.rect);
+        final currentDist = _distanceToRectCenter(tapPos, current.rect);
+        return currentDist < bestDist ? current : best;
+      },
+    );
+
+    if (hit == null) return;
+    _showMeasurementInputDialog(roomState, hit);
+  }
+
+  Future<void> _showMeasurementInputDialog(
+    RoomState roomState,
+    MeasurementHitTarget hit,
+  ) async {
+    final maxDistance = _maxDistanceForWall(roomState, hit.target.wall);
+    final label = _distanceLabel(hit.target);
+    final controller =
+        TextEditingController(text: hit.distanceMeters.toStringAsFixed(2));
+
+    final value = await showDialog<double>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Set $label distance'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                  'Enter distance in meters (0.00 - ${maxDistance.toStringAsFixed(2)}).'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Distance (m)',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+                onSubmitted: (_) {
+                  final parsed = double.tryParse(controller.text.trim());
+                  Navigator.of(context).pop(parsed);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final parsed = double.tryParse(controller.text.trim());
+                Navigator.of(context).pop(parsed);
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (value == null) return;
+    if (value.isNaN || value.isInfinite || value < 0 || value > maxDistance) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Distance must be between 0 and ${maxDistance.toStringAsFixed(2)} m.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    ref.read(roomProvider.notifier).setDistanceToWall(
+          entity: hit.target.entity,
+          wall: hit.target.wall,
+          distanceMeters: value,
+        );
+  }
+
+  String _distanceLabel(EditableDistanceTarget target) {
+    final entity = switch (target.entity) {
+      MeasuredEntity.focus => 'Focus',
+      MeasuredEntity.leftSpeaker => 'Left speaker',
+      MeasuredEntity.rightSpeaker => 'Right speaker',
+    };
+
+    final wall = switch (target.wall) {
+      RoomWall.left => 'left wall',
+      RoomWall.right => 'right wall',
+      RoomWall.front => 'front wall',
+      RoomWall.back => 'back wall',
+    };
+
+    return '$entity to $wall';
+  }
+
+  double _maxDistanceForWall(RoomState roomState, RoomWall wall) {
+    switch (wall) {
+      case RoomWall.left:
+      case RoomWall.right:
+        return roomState.room.widthMeters;
+      case RoomWall.front:
+      case RoomWall.back:
+        return roomState.room.lengthMeters;
+    }
+  }
+
+  double _distanceToRectCenter(Offset point, Rect rect) {
+    return _distancePx(point, rect.center);
   }
 
   double _distancePx(Offset a, Offset b) {

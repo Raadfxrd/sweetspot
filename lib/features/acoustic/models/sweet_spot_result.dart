@@ -4,8 +4,6 @@ class SweetSpotResult {
   final double speakerSpacing;
   final double listeningDistance;
   final double triangleAccuracy;
-  final double suggestedToeInLeft;
-  final double suggestedToeInRight;
   final bool isOptimal;
   final String feedback;
 
@@ -15,8 +13,6 @@ class SweetSpotResult {
     required this.speakerSpacing,
     required this.listeningDistance,
     required this.triangleAccuracy,
-    required this.suggestedToeInLeft,
-    required this.suggestedToeInRight,
     required this.isOptimal,
     required this.feedback,
   });
