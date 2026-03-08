@@ -98,10 +98,11 @@ class RoomDesignScreen extends ConsumerWidget {
               ),
               SizedBox(height: 12),
               _HelpItem(
-                icon: Icons.blur_on,
-                title: 'Sweet Spot Heatmap',
-                description: 'Green = optimal stereo imaging zone, '
-                    'Yellow = acceptable, Red = poor imaging.',
+                icon: Icons.straighten,
+                title: 'Measurements',
+                description: 'Shows distances from the listening position and '
+                    'speakers to the nearest walls. Use these to position elements '
+                    'and avoid problematic reflections.',
               ),
               SizedBox(height: 12),
               _HelpItem(
@@ -112,11 +113,11 @@ class RoomDesignScreen extends ConsumerWidget {
               ),
               SizedBox(height: 12),
               _HelpItem(
-                icon: Icons.auto_awesome,
-                title: 'Auto Suggest',
+                icon: Icons.grid_3x3,
+                title: 'Grid & Scale',
                 description:
-                    'Use "Suggest Sweet Spot" to automatically calculate '
-                    'the optimal listening position for the equilateral triangle.',
+                    'The room preview automatically scales to fit your screen. '
+                    'Grid lines show 0.5m spacing for reference.',
               ),
             ],
           ),

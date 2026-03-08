@@ -15,8 +15,8 @@ class RoomPainter extends CustomPainter {
   final double scale;
   final bool showGrid;
   final bool showReflections;
-  final bool showHeatmap;
   final bool showTriangle;
+  final bool showMeasurements;
 
   const RoomPainter({
     required this.roomState,
@@ -25,8 +25,8 @@ class RoomPainter extends CustomPainter {
     required this.scale,
     this.showGrid = true,
     this.showReflections = true,
-    this.showHeatmap = true,
     this.showTriangle = true,
+    this.showMeasurements = true,
   });
 
   @override
@@ -43,19 +43,19 @@ class RoomPainter extends CustomPainter {
       _drawGrid(canvas, room.widthMeters, room.lengthMeters, roomW, roomH);
     }
 
-    // 3. Draw sweet spot heatmap
-    if (showHeatmap) {
-      _drawSweetSpotHeatmap(canvas);
-    }
-
-    // 4. Draw triangle
+    // 3. Draw triangle
     if (showTriangle) {
       _drawStereoTriangle(canvas);
     }
 
-    // 5. Draw reflection points
+    // 4. Draw reflection points
     if (showReflections) {
       _drawReflectionPoints(canvas);
+    }
+
+    // 5. Draw measurements (distances to walls)
+    if (showMeasurements) {
+      _drawMeasurements(canvas);
     }
 
     // 6. Draw speakers
@@ -154,53 +154,160 @@ class RoomPainter extends CustomPainter {
     }
   }
 
-  void _drawSweetSpotHeatmap(Canvas canvas) {
+  void _drawMeasurements(Canvas canvas) {
+    final room = roomState.room;
     final lpPos = roomState.listeningPosition.position;
+    final lSpeakerPos = roomState.leftSpeaker.position;
+    final rSpeakerPos = roomState.rightSpeaker.position;
+
+    final measurementPaint = Paint()
+      ..color = AppTheme.highlight.withAlpha(100)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final dashPaint = Paint()
+      ..color = AppTheme.highlight.withAlpha(80)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    // Listening position to walls
     final lpOffset = Offset(lpPos.x * scale, lpPos.y * scale);
 
-    final speakerSpacing = sweetSpotResult.speakerSpacing;
-    if (speakerSpacing <= 0) return;
+    // Distance to left wall (x=0)
+    final distToLeftWall = lpPos.x;
+    _drawMeasurementLine(
+      canvas,
+      lpOffset,
+      Offset(0, lpPos.y * scale),
+      distToLeftWall,
+      measurementPaint,
+      dashPaint,
+      'LP→Left',
+    );
 
-    // Heatmap radius based on speaker spacing
-    final optimalRadius = speakerSpacing * scale * 0.3;
-    final goodRadius = optimalRadius * 1.8;
-    final fairRadius = optimalRadius * 2.8;
+    // Distance to right wall (x=width)
+    final distToRightWall = room.widthMeters - lpPos.x;
+    _drawMeasurementLine(
+      canvas,
+      lpOffset,
+      Offset(room.widthMeters * scale, lpPos.y * scale),
+      distToRightWall,
+      measurementPaint,
+      dashPaint,
+      'LP→Right',
+    );
 
-    // Outer zone (poor - red)
-    final redPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          AppTheme.sweetSpotRed.withAlpha(0),
-          AppTheme.sweetSpotRed.withAlpha(30),
-          AppTheme.sweetSpotRed.withAlpha(0),
-        ],
-        stops: const [0.0, 0.7, 1.0],
-      ).createShader(Rect.fromCircle(center: lpOffset, radius: fairRadius));
-    canvas.drawCircle(lpOffset, fairRadius, redPaint);
+    // Distance to front wall (y=0)
+    final distToFrontWall = lpPos.y;
+    _drawMeasurementLine(
+      canvas,
+      lpOffset,
+      Offset(lpPos.x * scale, 0),
+      distToFrontWall,
+      measurementPaint,
+      dashPaint,
+      'LP→Front',
+    );
 
-    // Middle zone (acceptable - yellow)
-    final yellowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          AppTheme.sweetSpotYellow.withAlpha(0),
-          AppTheme.sweetSpotYellow.withAlpha(40),
-          AppTheme.sweetSpotYellow.withAlpha(0),
-        ],
-        stops: const [0.0, 0.7, 1.0],
-      ).createShader(Rect.fromCircle(center: lpOffset, radius: goodRadius));
-    canvas.drawCircle(lpOffset, goodRadius, yellowPaint);
+    // Distance to back wall (y=length)
+    final distToBackWall = room.lengthMeters - lpPos.y;
+    _drawMeasurementLine(
+      canvas,
+      lpOffset,
+      Offset(lpPos.x * scale, room.lengthMeters * scale),
+      distToBackWall,
+      measurementPaint,
+      dashPaint,
+      'LP→Back',
+    );
 
-    // Inner zone (optimal - green)
-    final greenPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          AppTheme.sweetSpotGreen.withAlpha(80),
-          AppTheme.sweetSpotGreen.withAlpha(40),
-          AppTheme.sweetSpotGreen.withAlpha(0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromCircle(center: lpOffset, radius: optimalRadius));
-    canvas.drawCircle(lpOffset, optimalRadius, greenPaint);
+    // Left speaker to walls
+    final lSpeakerOffset = Offset(lSpeakerPos.x * scale, lSpeakerPos.y * scale);
+
+    // Left speaker to left wall
+    final lSpeakerToLeftWall = lSpeakerPos.x;
+    _drawMeasurementLine(
+      canvas,
+      lSpeakerOffset,
+      Offset(0, lSpeakerPos.y * scale),
+      lSpeakerToLeftWall,
+      measurementPaint,
+      dashPaint,
+      'L→Left',
+    );
+
+    // Left speaker to front wall
+    final lSpeakerToFrontWall = lSpeakerPos.y;
+    _drawMeasurementLine(
+      canvas,
+      lSpeakerOffset,
+      Offset(lSpeakerPos.x * scale, 0),
+      lSpeakerToFrontWall,
+      measurementPaint,
+      dashPaint,
+      'L→Front',
+    );
+
+    // Right speaker to walls
+    final rSpeakerOffset = Offset(rSpeakerPos.x * scale, rSpeakerPos.y * scale);
+
+    // Right speaker to right wall
+    final rSpeakerToRightWall = room.widthMeters - rSpeakerPos.x;
+    _drawMeasurementLine(
+      canvas,
+      rSpeakerOffset,
+      Offset(room.widthMeters * scale, rSpeakerPos.y * scale),
+      rSpeakerToRightWall,
+      measurementPaint,
+      dashPaint,
+      'R→Right',
+    );
+
+    // Right speaker to front wall
+    final rSpeakerToFrontWall = rSpeakerPos.y;
+    _drawMeasurementLine(
+      canvas,
+      rSpeakerOffset,
+      Offset(rSpeakerPos.x * scale, 0),
+      rSpeakerToFrontWall,
+      measurementPaint,
+      dashPaint,
+      'R→Front',
+    );
+  }
+
+  void _drawMeasurementLine(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    double distanceM,
+    Paint linePaint,
+    Paint dashPaint,
+    String label,
+  ) {
+    // Draw dashed line
+    _drawDashedLine(canvas, start, end, dashPaint);
+
+    // Draw distance label
+    final midX = (start.dx + end.dx) / 2;
+    final midY = (start.dy + end.dy) / 2;
+
+    final distLabel = distanceM >= 1
+        ? '${distanceM.toStringAsFixed(2)}m'
+        : '${(distanceM * 100).toStringAsFixed(0)}cm';
+
+    _drawText(
+      canvas,
+      '$label: $distLabel',
+      Offset(midX - 20, midY - 10),
+      TextStyle(
+        color: AppTheme.highlight.withAlpha(220),
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        fontFamily: 'monospace',
+      ),
+      background: AppTheme.background.withAlpha(200),
+    );
   }
 
   void _drawStereoTriangle(Canvas canvas) {
@@ -491,7 +598,7 @@ class RoomPainter extends CustomPainter {
         oldDelegate.scale != scale ||
         oldDelegate.showGrid != showGrid ||
         oldDelegate.showReflections != showReflections ||
-        oldDelegate.showHeatmap != showHeatmap ||
-        oldDelegate.showTriangle != showTriangle;
+        oldDelegate.showTriangle != showTriangle ||
+        oldDelegate.showMeasurements != showMeasurements;
   }
 }

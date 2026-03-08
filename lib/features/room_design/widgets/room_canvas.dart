@@ -18,11 +18,10 @@ class RoomCanvas extends ConsumerStatefulWidget {
 
 class _RoomCanvasState extends ConsumerState<RoomCanvas> {
   _DragTarget? _activeDrag;
-  double _scale = 80.0; // pixels per meter (default)
   bool _showGrid = true;
   bool _showReflections = true;
-  bool _showHeatmap = true;
   bool _showTriangle = true;
+  bool _showMeasurements = true;
 
   static const double _hitRadius = 20.0; // px hit detection radius
 
@@ -33,6 +32,10 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     final reflections = ref.watch(reflectionPointsProvider);
 
     final room = roomState.room;
+
+    // Auto-scale based on available space
+    final _scale = _calculateAutoScale(context, room);
+
     final canvasWidth = room.widthMeters * _scale;
     final canvasHeight = room.lengthMeters * _scale;
 
@@ -69,8 +72,8 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
                         scale: _scale,
                         showGrid: _showGrid,
                         showReflections: _showReflections,
-                        showHeatmap: _showHeatmap,
                         showTriangle: _showTriangle,
+                        showMeasurements: _showMeasurements,
                       ),
                     ),
                   ),
@@ -107,48 +110,42 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
             ),
             const SizedBox(width: 8),
             _ToolbarButton(
-              icon: Icons.blur_on,
-              label: 'Heatmap',
-              active: _showHeatmap,
-              onTap: () => setState(() => _showHeatmap = !_showHeatmap),
-            ),
-            const SizedBox(width: 8),
-            _ToolbarButton(
               icon: Icons.waves,
               label: 'Reflections',
               active: _showReflections,
               onTap: () => setState(() => _showReflections = !_showReflections),
             ),
-            const SizedBox(width: 16),
-            const _Divider(),
-            const SizedBox(width: 16),
-            _ZoomButton(
-              icon: Icons.zoom_in,
+            const SizedBox(width: 8),
+            _ToolbarButton(
+              icon: Icons.straighten,
+              label: 'Measurements',
+              active: _showMeasurements,
               onTap: () =>
-                  setState(() => _scale = (_scale * 1.2).clamp(30.0, 200.0)),
-            ),
-            const SizedBox(width: 4),
-            _ZoomButton(
-              icon: Icons.zoom_out,
-              onTap: () =>
-                  setState(() => _scale = (_scale / 1.2).clamp(30.0, 200.0)),
-            ),
-            const SizedBox(width: 16),
-            _ZoomButton(
-              icon: Icons.center_focus_strong,
-              onTap: () => ref.read(roomProvider.notifier).autoPlaceSpeakers(),
-            ),
-            const SizedBox(width: 4),
-            _ZoomButton(
-              icon: Icons.auto_awesome,
-              onTap: () => ref
-                  .read(roomProvider.notifier)
-                  .suggestOptimalListeningPosition(),
+                  setState(() => _showMeasurements = !_showMeasurements),
             ),
           ],
         ),
       ),
     );
+  }
+
+  double _calculateAutoScale(BuildContext context, room) {
+    // Calculate available space for the canvas
+    final mediaQuery = MediaQuery.of(context);
+    final availableWidth = mediaQuery.size.width > 800
+        ? mediaQuery.size.width -
+            260 -
+            48 // Wide layout: subtract panel width and padding
+        : mediaQuery.size.width - 48; // Narrow layout: just padding
+    final availableHeight =
+        mediaQuery.size.height - 200; // Subtract app bar and toolbar
+
+    // Calculate scale to fit the room in available space
+    final scaleX = availableWidth / room.widthMeters;
+    final scaleY = availableHeight / room.lengthMeters;
+
+    // Use the smaller scale to ensure room fits, with min/max constraints
+    return math.min(scaleX, scaleY).clamp(40.0, 150.0);
   }
 
   void _onPanStart(
@@ -158,6 +155,7 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     double canvasHeight,
   ) {
     final localPos = details.localPosition;
+    final _scale = canvasWidth / roomState.room.widthMeters;
 
     final lPos = roomState.leftSpeaker.position;
     final rPos = roomState.rightSpeaker.position;
@@ -182,6 +180,9 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     double canvasHeight,
   ) {
     if (_activeDrag == null) return;
+
+    final roomState = ref.read(roomProvider);
+    final _scale = canvasWidth / roomState.room.widthMeters;
 
     final localPos = details.localPosition;
     final roomPos = RoomPosition(localPos.dx / _scale, localPos.dy / _scale);
@@ -261,40 +262,5 @@ class _ToolbarButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _ZoomButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _ZoomButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withAlpha(80),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: AppTheme.textSecondary.withAlpha(80),
-            width: 0.5,
-          ),
-        ),
-        child: Icon(icon, size: 16, color: AppTheme.textSecondary),
-      ),
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 20, color: AppTheme.gridLine);
   }
 }
