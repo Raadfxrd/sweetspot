@@ -529,7 +529,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
                 ),
                 if (isNear) ...[
                   const SizedBox(width: 4),
-                  Icon(Icons.check_circle_rounded,
+                  const Icon(Icons.check_circle_rounded,
                       size: 11, color: AppTheme.sweetSpotGreen),
                 ],
               ],
