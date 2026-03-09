@@ -168,7 +168,7 @@ class OptimizationInstructionGenerator {
     final gapCm = _toCm(targetGap);
     final direction = movesAwayFromWall ? 'away from' : 'toward';
 
-    return '$movementCm cm $direction the $wallName (final gap ${gapCm} cm)';
+    return '$movementCm cm $direction the $wallName (final gap $gapCm cm)';
   }
 
   String? _listeningPositionInstruction({

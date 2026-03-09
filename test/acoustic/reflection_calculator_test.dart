@@ -12,15 +12,15 @@ void main() {
 
   group('ReflectionCalculator', () {
     test('calculates reflections for speaker', () {
-      final leftSpeaker = Speaker(
+      const leftSpeaker = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.5, 1.5),
+        position: RoomPosition(1.5, 1.5),
       );
-      final rightSpeaker = Speaker(
+      const rightSpeaker = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.5, 1.5),
+        position: RoomPosition(4.5, 1.5),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(3.0, 5.0),
       );
 
@@ -41,15 +41,15 @@ void main() {
     });
 
     test('reflection point is on the correct wall', () {
-      final leftSpeaker = Speaker(
+      const leftSpeaker = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.5, 1.5),
+        position: RoomPosition(1.5, 1.5),
       );
-      final rightSpeaker = Speaker(
+      const rightSpeaker = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.5, 1.5),
+        position: RoomPosition(4.5, 1.5),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(3.0, 5.0),
       );
 
@@ -79,15 +79,15 @@ void main() {
     });
 
     test('does not return reflections outside room bounds', () {
-      final leftSpeaker = Speaker(
+      const leftSpeaker = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.5, 1.5),
+        position: RoomPosition(1.5, 1.5),
       );
-      final rightSpeaker = Speaker(
+      const rightSpeaker = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.5, 1.5),
+        position: RoomPosition(4.5, 1.5),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(3.0, 5.0),
       );
 
@@ -107,15 +107,15 @@ void main() {
     });
 
     test('returns multiple reflections', () {
-      final leftSpeaker = Speaker(
+      const leftSpeaker = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.5, 1.5),
+        position: RoomPosition(1.5, 1.5),
       );
-      final rightSpeaker = Speaker(
+      const rightSpeaker = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.5, 1.5),
+        position: RoomPosition(4.5, 1.5),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(3.0, 5.0),
       );
 
@@ -130,19 +130,19 @@ void main() {
     });
 
     test('toe-in updates dispersion rays', () {
-      final leftZero = Speaker(
+      const leftZero = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.5, 1.5),
+        position: RoomPosition(1.5, 1.5),
         toeInDegrees: 0,
       );
-      final rightZero = Speaker(
+      const rightZero = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.5, 1.5),
+        position: RoomPosition(4.5, 1.5),
         toeInDegrees: 0,
       );
       final leftToeIn = leftZero.copyWith(toeInDegrees: 20);
       final rightToeIn = rightZero.copyWith(toeInDegrees: 20);
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(3.0, 5.0),
       );
 
@@ -178,11 +178,11 @@ void main() {
 
   group('ReflectionPoint', () {
     test('wallLabel returns correct string', () {
-      final rp = ReflectionPoint(
+      const rp = ReflectionPoint(
         wall: ReflectionWall.left,
-        position: const RoomPosition(0, 3),
-        speakerPosition: const RoomPosition(1.5, 1.5),
-        listenerPosition: const RoomPosition(3.0, 5.0),
+        position: RoomPosition(0, 3),
+        speakerPosition: RoomPosition(1.5, 1.5),
+        listenerPosition: RoomPosition(3.0, 5.0),
       );
       expect(rp.wallLabel, equals('Left Wall'));
     });

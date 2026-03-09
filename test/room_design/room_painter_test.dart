@@ -53,5 +53,52 @@ void main() {
 
       expect(newPainter.shouldRepaint(oldPainter), isTrue);
     });
+
+    test('repaints when intro progress changes', () {
+      const roomState = RoomState(
+        room: Room(widthMeters: 5.0, lengthMeters: 6.0),
+        leftSpeaker: Speaker(
+          channel: SpeakerChannel.left,
+          position: RoomPosition(1.7, 1.2),
+        ),
+        rightSpeaker: Speaker(
+          channel: SpeakerChannel.right,
+          position: RoomPosition(3.3, 1.2),
+        ),
+        listeningPosition: ListeningPosition(
+          position: RoomPosition(2.5, 3.6),
+        ),
+      );
+
+      const sweetSpotResult = SweetSpotResult(
+        leftDistance: 2.6,
+        rightDistance: 2.6,
+        speakerSpacing: 1.6,
+        listeningDistance: 2.6,
+        triangleAccuracy: 1.0,
+        isOptimal: true,
+        feedback: 'ok',
+      );
+
+      const oldPainter = RoomPainter(
+        roomState: roomState,
+        sweetSpotResult: sweetSpotResult,
+        reflectionPoints: [],
+        recommendedAimingPoint: RoomPosition(2.5, 3.9),
+        scale: 100,
+        introProgress: 0.2,
+      );
+
+      const newPainter = RoomPainter(
+        roomState: roomState,
+        sweetSpotResult: sweetSpotResult,
+        reflectionPoints: [],
+        recommendedAimingPoint: RoomPosition(2.5, 3.9),
+        scale: 100,
+        introProgress: 0.8,
+      );
+
+      expect(newPainter.shouldRepaint(oldPainter), isTrue);
+    });
   });
 }

@@ -45,6 +45,7 @@ class RoomPainter extends CustomPainter {
   final bool showTriangle;
   final bool showMeasurements;
   final int? hoveredBlockerId;
+  final double introProgress;
 
   const RoomPainter({
     required this.roomState,
@@ -57,6 +58,7 @@ class RoomPainter extends CustomPainter {
     this.showTriangle = true,
     this.showMeasurements = true,
     this.hoveredBlockerId,
+    this.introProgress = 1.0,
   });
 
   @override
@@ -64,60 +66,113 @@ class RoomPainter extends CustomPainter {
     final room = roomState.room;
     final roomW = room.widthMeters * scale;
     final roomH = room.lengthMeters * scale;
+    final bounds = Rect.fromLTWH(0, 0, roomW, roomH);
+
+    final rawProgress = introProgress.clamp(0.0, 1.0);
+    final p = rawProgress >= 0.995 ? 1.0 : rawProgress;
+    final roomStage = _segmentProgress(0.0, 0.16, p);
+    final gridStage = _segmentProgress(0.08, 0.34, p);
+    final blockersStage = _segmentProgress(0.16, 0.38, p);
+    final triangleStage = _segmentProgress(0.24, 0.52, p);
+    final reflectionsStage = _segmentProgress(0.34, 0.62, p);
+    final measurementsStage = _segmentProgress(0.42, 0.74, p);
+    final markersStage = _segmentProgress(0.56, 0.9, p);
+    final borderStage = _segmentProgress(0.74, 1.0, p);
 
     // 1. Draw room background
-    _drawRoomBackground(canvas, roomW, roomH);
+    _drawRoomBackground(canvas, roomW, roomH, opacity: roomStage);
 
     // 2. Draw grid
-    if (showGrid) {
-      _drawGrid(canvas, room.widthMeters, room.lengthMeters, roomW, roomH);
+    if (showGrid && gridStage > 0) {
+      _paintStage(canvas, bounds, gridStage, () {
+        _drawGrid(
+          canvas,
+          room.widthMeters,
+          room.lengthMeters,
+          roomW,
+          roomH,
+          drawProgress: gridStage,
+        );
+      });
     }
 
     // 3. Draw blocked areas on top of the grid.
-    _drawBlockedZones(canvas);
+    if (blockersStage > 0) {
+      _paintStage(
+          canvas, bounds, blockersStage, () => _drawBlockedZones(canvas));
+    }
 
     // 4. Draw triangle
-    if (showTriangle) {
-      _drawStereoTriangle(canvas);
+    if (showTriangle && triangleStage > 0) {
+      _paintStage(
+          canvas, bounds, triangleStage, () => _drawStereoTriangle(canvas));
     }
 
     // 5. Draw reflection points
-    if (showReflections) {
-      _drawReflectionPoints(canvas);
+    if (showReflections && reflectionsStage > 0) {
+      _paintStage(canvas, bounds, reflectionsStage,
+          () => _drawReflectionPoints(canvas));
     }
 
     // 6. Draw measurements (distances to walls)
-    if (showMeasurements) {
-      _drawMeasurements(canvas);
+    if (showMeasurements && measurementsStage > 0) {
+      _paintStage(
+          canvas, bounds, measurementsStage, () => _drawMeasurements(canvas));
     }
 
     // 7. Draw speakers
-    _drawSpeaker(canvas, roomState.leftSpeaker);
-    _drawSpeaker(canvas, roomState.rightSpeaker);
+    _drawSpeaker(canvas, roomState.leftSpeaker, revealProgress: markersStage);
+    _drawSpeaker(canvas, roomState.rightSpeaker, revealProgress: markersStage);
 
     // 8. Draw listening position
-    _drawListeningPosition(canvas);
+    _drawListeningPosition(canvas, revealProgress: markersStage);
 
     // 9. Draw recommended aiming position
-    drawRecommendedAimingPoint(canvas, recommendedAimingPoint);
+    drawRecommendedAimingPoint(
+      canvas,
+      recommendedAimingPoint,
+      revealProgress: markersStage,
+    );
 
     // 10. Draw room border (on top for clean edges)
-    _drawRoomBorder(canvas, roomW, roomH);
+    _drawRoomBorder(canvas, roomW, roomH, progress: borderStage);
   }
 
-  void _drawRoomBackground(Canvas canvas, double roomW, double roomH) {
+  void _drawRoomBackground(
+    Canvas canvas,
+    double roomW,
+    double roomH, {
+    double opacity = 1.0,
+  }) {
+    if (opacity <= 0) return;
     final paint = Paint()
-      ..color = AppTheme.surface
+      ..color = AppTheme.surface.withAlpha(_alphaFor(opacity))
       ..style = PaintingStyle.fill;
     canvas.drawRect(Rect.fromLTWH(0, 0, roomW, roomH), paint);
   }
 
-  void _drawRoomBorder(Canvas canvas, double roomW, double roomH) {
+  void _drawRoomBorder(
+    Canvas canvas,
+    double roomW,
+    double roomH, {
+    double progress = 1.0,
+  }) {
+    if (progress <= 0) return;
     final paint = Paint()
       ..color = AppTheme.roomBorder
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
-    canvas.drawRect(Rect.fromLTWH(0, 0, roomW, roomH), paint);
+
+    final rect = Rect.fromLTWH(0, 0, roomW, roomH);
+    if (progress >= 0.999) {
+      canvas.drawRect(rect, paint);
+      return;
+    }
+
+    final path = Path()..addRect(rect);
+    final metric = path.computeMetrics().first;
+    final partial = metric.extractPath(0, metric.length * progress);
+    canvas.drawPath(partial, paint);
   }
 
   void _drawGrid(
@@ -125,8 +180,9 @@ class RoomPainter extends CustomPainter {
     double roomWidthM,
     double roomLengthM,
     double roomW,
-    double roomH,
-  ) {
+    double roomH, {
+    double drawProgress = 1.0,
+  }) {
     const gridSpacingM = 0.5; // 0.5m grid
     final gridPaint = Paint()
       ..color = AppTheme.gridLine
@@ -135,6 +191,11 @@ class RoomPainter extends CustomPainter {
     final majorPaint = Paint()
       ..color = AppTheme.gridLine.withAlpha(120)
       ..strokeWidth = 1.0;
+
+    if (drawProgress < 1.0) {
+      canvas.save();
+      canvas.clipRect(Rect.fromLTWH(0, 0, roomW * drawProgress, roomH));
+    }
 
     // Vertical lines
     var x = 0.0;
@@ -162,6 +223,10 @@ class RoomPainter extends CustomPainter {
       );
       yM += gridSpacingM;
       y = yM * scale;
+    }
+
+    if (drawProgress < 1.0) {
+      canvas.restore();
     }
 
     // Draw dimension labels at 1m intervals
@@ -624,27 +689,37 @@ class RoomPainter extends CustomPainter {
     return (fx / len, fy / len);
   }
 
-  void _drawSpeaker(Canvas canvas, Speaker speaker) {
+  void _drawSpeaker(Canvas canvas, Speaker speaker,
+      {double revealProgress = 1.0}) {
+    if (revealProgress <= 0) return;
+    final fade = Curves.easeOutCubic.transform(revealProgress.clamp(0.0, 1.0));
+    final scaleIn = 0.85 + (0.15 * fade);
+
     final pos = speaker.position;
     final offset = Offset(pos.x * scale, pos.y * scale);
     final isLeft = speaker.channel == SpeakerChannel.left;
     final color = isLeft ? AppTheme.leftSpeaker : AppTheme.rightSpeaker;
 
+    canvas.save();
+    canvas.translate(offset.dx, offset.dy);
+    canvas.scale(scaleIn, scaleIn);
+    canvas.translate(-offset.dx, -offset.dy);
+
     // Speaker glow
     final glowPaint = Paint()
-      ..color = color.withAlpha(40)
+      ..color = color.withAlpha((40 * fade).round())
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawCircle(offset, 18, glowPaint);
 
     // Speaker body
     final bodyPaint = Paint()
-      ..color = color.withAlpha(200)
+      ..color = color.withAlpha((200 * fade).round())
       ..style = PaintingStyle.fill;
     canvas.drawCircle(offset, 12, bodyPaint);
 
     // Speaker border
     final borderPaint = Paint()
-      ..color = color
+      ..color = color.withAlpha((255 * fade).round())
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawCircle(offset, 12, borderPaint);
@@ -658,7 +733,7 @@ class RoomPainter extends CustomPainter {
     final arrowEndY = offset.dy + arrowLength * math.cos(directionAngle);
 
     final arrowPaint = Paint()
-      ..color = color.withAlpha(220)
+      ..color = color.withAlpha((220 * fade).round())
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
@@ -685,8 +760,8 @@ class RoomPainter extends CustomPainter {
       canvas,
       speaker.label,
       Offset(offset.dx - 5, offset.dy - 7),
-      const TextStyle(
-        color: Colors.white,
+      TextStyle(
+        color: Colors.white.withAlpha((255 * fade).round()),
         fontSize: 12,
         fontWeight: FontWeight.w800,
       ),
@@ -700,31 +775,42 @@ class RoomPainter extends CustomPainter {
       posLabel,
       Offset(offset.dx - 28, offset.dy + 16),
       TextStyle(
-        color: color.withAlpha(180),
+        color: color.withAlpha((180 * fade).round()),
         fontSize: 9,
         fontFamily: 'monospace',
       ),
     );
+
+    canvas.restore();
   }
 
-  void _drawListeningPosition(Canvas canvas) {
+  void _drawListeningPosition(Canvas canvas, {double revealProgress = 1.0}) {
+    if (revealProgress <= 0) return;
+    final fade = Curves.easeOutCubic.transform(revealProgress.clamp(0.0, 1.0));
+    final scaleIn = 0.85 + (0.15 * fade);
+
     final pos = roomState.listeningPosition.position;
     final offset = Offset(pos.x * scale, pos.y * scale);
     const color = AppTheme.listeningPos;
 
+    canvas.save();
+    canvas.translate(offset.dx, offset.dy);
+    canvas.scale(scaleIn, scaleIn);
+    canvas.translate(-offset.dx, -offset.dy);
+
     final glowPaint = Paint()
-      ..color = color.withAlpha(40)
+      ..color = color.withAlpha((40 * fade).round())
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     canvas.drawCircle(offset, 20, glowPaint);
 
     final ringPaint = Paint()
-      ..color = color.withAlpha(100)
+      ..color = color.withAlpha((100 * fade).round())
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(offset, 18, ringPaint);
 
     final bodyPaint = Paint()
-      ..color = color.withAlpha(180)
+      ..color = color.withAlpha((180 * fade).round())
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -738,13 +824,15 @@ class RoomPainter extends CustomPainter {
       canvas,
       'Focus',
       Offset(offset.dx - 8, offset.dy + 10),
-      const TextStyle(
-        color: color,
+      TextStyle(
+        color: color.withAlpha((255 * fade).round()),
         fontSize: 9,
         fontWeight: FontWeight.w700,
         fontFamily: 'monospace',
       ),
     );
+
+    canvas.restore();
   }
 
   void _drawText(
@@ -775,19 +863,26 @@ class RoomPainter extends CustomPainter {
     textPainter.paint(canvas, position);
   }
 
-  void drawRecommendedAimingPoint(Canvas canvas, RoomPosition aimingPoint) {
+  void drawRecommendedAimingPoint(
+    Canvas canvas,
+    RoomPosition aimingPoint, {
+    double revealProgress = 1.0,
+  }) {
+    if (revealProgress <= 0) return;
+    final fade = Curves.easeOutCubic.transform(revealProgress.clamp(0.0, 1.0));
+
     final offset = Offset(aimingPoint.x * scale, aimingPoint.y * scale);
     const color = AppTheme.highlight;
 
     // Outer glow ring
     final glowPaint = Paint()
-      ..color = color.withAlpha(30)
+      ..color = color.withAlpha((30 * fade).round())
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawCircle(offset, 14, glowPaint);
 
     // Crosshair marker
     final crosshairPaint = Paint()
-      ..color = color.withAlpha(180)
+      ..color = color.withAlpha((180 * fade).round())
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
@@ -807,7 +902,7 @@ class RoomPainter extends CustomPainter {
 
     // Center dot
     final centerPaint = Paint()
-      ..color = color.withAlpha(220)
+      ..color = color.withAlpha((220 * fade).round())
       ..style = PaintingStyle.fill;
     canvas.drawCircle(offset, 3, centerPaint);
 
@@ -817,12 +912,12 @@ class RoomPainter extends CustomPainter {
       'Aim',
       Offset(offset.dx - 10, offset.dy + 12),
       TextStyle(
-        color: color.withAlpha(220),
+        color: color.withAlpha((220 * fade).round()),
         fontSize: 9,
         fontWeight: FontWeight.w700,
         fontFamily: 'monospace',
       ),
-      background: AppTheme.background.withAlpha(200),
+      background: AppTheme.background.withAlpha((200 * fade).round()),
     );
   }
 
@@ -904,7 +999,34 @@ class RoomPainter extends CustomPainter {
         oldDelegate.showReflections != showReflections ||
         oldDelegate.showTriangle != showTriangle ||
         oldDelegate.showMeasurements != showMeasurements ||
-        oldDelegate.hoveredBlockerId != hoveredBlockerId;
+        oldDelegate.hoveredBlockerId != hoveredBlockerId ||
+        oldDelegate.introProgress != introProgress;
+  }
+
+  double _segmentProgress(double start, double end, double value) {
+    if (value <= start) return 0;
+    if (value >= end || value >= 0.995) return 1;
+    return (value - start) / (end - start);
+  }
+
+  int _alphaFor(double opacity) {
+    return (255 * opacity.clamp(0.0, 1.0)).round();
+  }
+
+  void _paintStage(
+      Canvas canvas, Rect bounds, double opacity, VoidCallback draw) {
+    if (opacity <= 0) return;
+    if (opacity >= 0.999) {
+      draw();
+      return;
+    }
+
+    canvas.saveLayer(
+      bounds,
+      Paint()..color = Colors.white.withAlpha(_alphaFor(opacity)),
+    );
+    draw();
+    canvas.restore();
   }
 
   List<MeasurementHitTarget> measurementHitTargets() {

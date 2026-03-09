@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/animated_border_reveal.dart';
 import '../../acoustic/models/optimization_result.dart';
 import '../../acoustic/models/sweet_spot_result.dart';
 import '../models/room.dart';
@@ -63,7 +64,12 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
       color: AppTheme.surface,
       child: Column(
         children: [
-          _buildHeader(sweetSpot, room),
+          AnimatedReveal(
+            delay: const Duration(milliseconds: 160),
+            duration: const Duration(milliseconds: 450),
+            slideUp: true,
+            child: _buildHeader(sweetSpot, room),
+          ),
           const Divider(height: 0.5, thickness: 0.5, color: AppTheme.border),
           Expanded(
             child: ListView(
@@ -75,6 +81,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
                   expanded: _expandRoom,
                   onToggle: () => setState(() => _expandRoom = !_expandRoom),
                   child: _buildDimensionFields(room),
+                  sectionIndex: 0,
                 ),
                 const SizedBox(height: 8),
                 _buildSection(
@@ -84,6 +91,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
                   onToggle: () =>
                       setState(() => _expandBlockers = !_expandBlockers),
                   child: _buildBlockersPanel(roomState),
+                  sectionIndex: 1,
                 ),
                 const SizedBox(height: 8),
                 _buildSection(
@@ -94,6 +102,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
                       setState(() => _expandAnalysis = !_expandAnalysis),
                   child:
                       _buildSweetSpotPanel(sweetSpot, roomState, optimization),
+                  sectionIndex: 2,
                 ),
                 const SizedBox(height: 8),
                 _buildSection(
@@ -102,9 +111,15 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
                   expanded: _expandToeIn,
                   onToggle: () => setState(() => _expandToeIn = !_expandToeIn),
                   child: _buildSpeakerToeIn(roomState),
+                  sectionIndex: 3,
                 ),
                 const SizedBox(height: 12),
-                _buildActions(),
+                AnimatedReveal(
+                  delay: const Duration(milliseconds: 700),
+                  duration: const Duration(milliseconds: 400),
+                  slideUp: true,
+                  child: _buildActions(),
+                ),
               ],
             ),
           ),
@@ -192,56 +207,79 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
     required bool expanded,
     required VoidCallback onToggle,
     required Widget child,
+    required int sectionIndex,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant,
+    final sectionDelay = Duration(milliseconds: 200 + (sectionIndex * 150));
+    final contentDelay = Duration(milliseconds: 250 + (sectionIndex * 150));
+
+    return AnimatedReveal(
+      delay: sectionDelay,
+      duration: const Duration(milliseconds: 600),
+      slideUp: true,
+      child: AnimatedBorderReveal(
+        delay: Duration.zero,
+        duration: const Duration(milliseconds: 700),
+        borderColor: AppTheme.accent.withAlpha(120),
+        borderWidth: 1.5,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: AppTheme.border, width: 0.5),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: onToggle,
-            borderRadius: BorderRadius.vertical(
-              top: const Radius.circular(9),
-              bottom: expanded ? Radius.zero : const Radius.circular(9),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(icon, size: 15, color: AppTheme.textSecondary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    size: 16,
-                    color: AppTheme.textSecondary,
-                  ),
-                ],
-              ),
-            ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceVariant,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: AppTheme.border, width: 0.5),
           ),
-          if (expanded) ...[
-            const Divider(height: 0.5, thickness: 0.5, color: AppTheme.border),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: child,
-            ),
-          ],
-        ],
+          child: Column(
+            children: [
+              InkWell(
+                onTap: onToggle,
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(9),
+                  bottom: expanded ? Radius.zero : const Radius.circular(9),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 15, color: AppTheme.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (expanded) ...[
+                const Divider(
+                    height: 0.5, thickness: 0.5, color: AppTheme.border),
+                AnimatedReveal(
+                  delay: contentDelay,
+                  duration: const Duration(milliseconds: 500),
+                  slideUp: true,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: child,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

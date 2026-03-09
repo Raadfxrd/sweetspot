@@ -2,16 +2,32 @@ import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/room_design/screens/room_design_screen.dart';
+import 'features/splash/splash_screen.dart';
 
-class SweetspotApp extends StatelessWidget {
+class SweetspotApp extends StatefulWidget {
   const SweetspotApp({super.key});
+
+  @override
+  State<SweetspotApp> createState() => _SweetspotAppState();
+}
+
+class _SweetspotAppState extends State<SweetspotApp> {
+  bool _showSplash = true;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sweetspot',
       theme: AppTheme.dark(),
-      home: const RoomDesignScreen(),
+      home: _showSplash
+          ? SplashScreen(
+              onComplete: () {
+                setState(() {
+                  _showSplash = false;
+                });
+              },
+            )
+          : const RoomDesignScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

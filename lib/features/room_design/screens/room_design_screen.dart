@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/animated_border_reveal.dart';
 import '../widgets/room_canvas.dart';
 import '../widgets/room_setup_panel.dart';
 
@@ -18,31 +19,40 @@ class RoomDesignScreen extends ConsumerWidget {
         backgroundColor: AppTheme.surface,
         elevation: 0,
         titleSpacing: 20,
-        title: const Row(
-          children: [
-            Text(
-              'Sweetspot',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
+        title: const AnimatedReveal(
+          delay: Duration(milliseconds: 100),
+          duration: Duration(milliseconds: 450),
+          child: Row(
+            children: [
+              Text(
+                'Sweetspot',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.3,
+                ),
               ),
-            ),
-            SizedBox(width: 10),
-            _AppBarChip(label: 'Room Optimizer'),
-          ],
+              SizedBox(width: 10),
+              _AppBarChip(label: 'Room Optimizer'),
+            ],
+          ),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(0.5),
           child: Divider(height: 0.5, thickness: 0.5, color: AppTheme.border),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline_rounded, size: 18),
-            color: AppTheme.textSecondary,
-            onPressed: () => _showHelp(context),
-            tooltip: 'Help',
+          AnimatedReveal(
+            delay: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 400),
+            slideUp: true,
+            child: IconButton(
+              icon: const Icon(Icons.help_outline_rounded, size: 18),
+              color: AppTheme.textSecondary,
+              onPressed: () => _showHelp(context),
+              tooltip: 'Help',
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -174,10 +184,21 @@ class _WideLayoutState extends State<_WideLayout> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Sidebar
+        // Sidebar with staggered reveal
         SizedBox(
           width: _sidebarWidth,
-          child: const RoomSetupPanel(),
+          child: AnimatedBorderReveal(
+            delay: const Duration(milliseconds: 100),
+            duration: const Duration(milliseconds: 800),
+            borderColor: AppTheme.accent.withAlpha(140),
+            borderRadius: BorderRadius.zero,
+            child: const AnimatedReveal(
+              delay: Duration(milliseconds: 150),
+              duration: Duration(milliseconds: 500),
+              slideUp: true,
+              child: RoomSetupPanel(),
+            ),
+          ),
         ),
         // Resize handle
         MouseRegion(
@@ -196,31 +217,54 @@ class _WideLayoutState extends State<_WideLayout> {
           ),
         ),
         // Canvas fills everything else
-        const Expanded(child: RoomCanvas()),
+        Expanded(
+          child: AnimatedBorderReveal(
+            delay: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 900),
+            borderColor: AppTheme.accent.withAlpha(140),
+            borderRadius: BorderRadius.zero,
+            child: const AnimatedReveal(
+              delay: Duration(milliseconds: 250),
+              duration: Duration(milliseconds: 600),
+              child: RoomCanvas(),
+            ),
+          ),
+        ),
       ],
     );
   }
 }
-
-// ── Narrow (mobile) layout ────────────────────────────────────────────────────
 
 class _NarrowLayout extends StatelessWidget {
   const _NarrowLayout();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
-        // Canvas gets the top 55 % of available height
         Expanded(
           flex: 55,
-          child: RoomCanvas(),
+          child: AnimatedBorderReveal(
+            delay: const Duration(milliseconds: 100),
+            duration: const Duration(milliseconds: 1200),
+            borderColor: AppTheme.accent.withAlpha(180),
+            borderWidth: 2.0,
+            borderRadius: BorderRadius.zero,
+            child: const RoomCanvas(),
+          ),
         ),
-        Divider(height: 0.5, thickness: 0.5, color: AppTheme.border),
+        const Divider(height: 0.5, thickness: 0.5, color: AppTheme.border),
         // Panel scrolls in the bottom 45 %
         Expanded(
           flex: 45,
-          child: SingleChildScrollView(child: RoomSetupPanel()),
+          child: AnimatedBorderReveal(
+            delay: const Duration(milliseconds: 600),
+            duration: const Duration(milliseconds: 1000),
+            borderColor: AppTheme.accent.withAlpha(180),
+            borderWidth: 2.0,
+            borderRadius: BorderRadius.zero,
+            child: const SingleChildScrollView(child: RoomSetupPanel()),
+          ),
         ),
       ],
     );

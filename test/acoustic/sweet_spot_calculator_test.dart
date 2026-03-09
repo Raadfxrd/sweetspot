@@ -16,11 +16,11 @@ void main() {
       const spacing = 2.0;
       final height = spacing * (math.sqrt(3) / 2);
 
-      final left = Speaker(
+      const left = Speaker(
         channel: SpeakerChannel.left,
         position: RoomPosition(0.0, 0.0),
       );
-      final right = Speaker(
+      const right = Speaker(
         channel: SpeakerChannel.right,
         position: RoomPosition(spacing, 0.0),
       );
@@ -42,16 +42,16 @@ void main() {
     });
 
     test('detects asymmetric listener position', () {
-      final left = Speaker(
+      const left = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.0, 0.0),
+        position: RoomPosition(1.0, 0.0),
       );
-      final right = Speaker(
+      const right = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(3.0, 0.0),
+        position: RoomPosition(3.0, 0.0),
       );
       // Listener far to the left
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(0.5, 2.0),
       );
 
@@ -66,15 +66,15 @@ void main() {
     });
 
     test('calculates correct speaker spacing', () {
-      final left = Speaker(
+      const left = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.0, 1.0),
+        position: RoomPosition(1.0, 1.0),
       );
-      final right = Speaker(
+      const right = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.0, 1.0),
+        position: RoomPosition(4.0, 1.0),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(2.5, 3.5),
       );
 
@@ -88,10 +88,10 @@ void main() {
     });
 
     test('accuracy is zero when speakers overlap', () {
-      final pos = const RoomPosition(2.5, 1.0);
-      final left = Speaker(channel: SpeakerChannel.left, position: pos);
-      final right = Speaker(channel: SpeakerChannel.right, position: pos);
-      final listener = const ListeningPosition(
+      const pos = RoomPosition(2.5, 1.0);
+      const left = Speaker(channel: SpeakerChannel.left, position: pos);
+      const right = Speaker(channel: SpeakerChannel.right, position: pos);
+      const listener = ListeningPosition(
         position: RoomPosition(2.5, 3.5),
       );
 
@@ -106,15 +106,15 @@ void main() {
     });
 
     test('symmetry ratio is 1.0 for symmetric placement', () {
-      final left = Speaker(
+      const left = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(1.0, 1.0),
+        position: RoomPosition(1.0, 1.0),
       );
-      final right = Speaker(
+      const right = Speaker(
         channel: SpeakerChannel.right,
-        position: const RoomPosition(4.0, 1.0),
+        position: RoomPosition(4.0, 1.0),
       );
-      final listener = const ListeningPosition(
+      const listener = ListeningPosition(
         position: RoomPosition(2.5, 3.0),
       );
 
@@ -130,11 +130,11 @@ void main() {
 
     test('suggestListeningPosition returns equilateral apex', () {
       const spacing = 2.0;
-      final left = Speaker(
+      const left = Speaker(
         channel: SpeakerChannel.left,
-        position: const RoomPosition(0.0, 0.0),
+        position: RoomPosition(0.0, 0.0),
       );
-      final right = Speaker(
+      const right = Speaker(
         channel: SpeakerChannel.right,
         position: RoomPosition(spacing, 0.0),
       );
