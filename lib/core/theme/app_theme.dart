@@ -39,6 +39,14 @@ class AppTheme {
   static const Color sweetSpotYellow = Color(0xFFFF9F0A);
   static const Color sweetSpotRed = Color(0xFFFF453A);
 
+  // Motion tokens
+  static const Duration motionFast = Duration(milliseconds: 220);
+  static const Duration motionMedium = Duration(milliseconds: 420);
+  static const Duration motionSlow = Duration(milliseconds: 700);
+
+  static const Curve easeStandard = Curves.easeOutCubic;
+  static const Curve easeEmphasized = Curves.easeInOutCubic;
+
   static ThemeData dark() {
     return ThemeData(
       brightness: Brightness.dark,

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// A widget that draws an animated border around its child
 /// The border "traces" around the edges with a drawing effect
 class AnimatedBorderReveal extends StatefulWidget {
@@ -34,6 +36,9 @@ class _AnimatedBorderRevealState extends State<AnimatedBorderReveal>
   late Animation<double> _animation;
   Timer? _delayTimer;
 
+  bool get _reduceMotion => WidgetsBinding
+      .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+
   @override
   void initState() {
     super.initState();
@@ -43,7 +48,7 @@ class _AnimatedBorderRevealState extends State<AnimatedBorderReveal>
     );
 
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _controller, curve: AppTheme.easeEmphasized),
     );
 
     _scheduleReveal();
@@ -66,6 +71,11 @@ class _AnimatedBorderRevealState extends State<AnimatedBorderReveal>
     if (!widget.enabled) {
       _controller.stop();
       _controller.reset();
+      return;
+    }
+
+    if (_reduceMotion) {
+      _controller.value = 1.0;
       return;
     }
 
@@ -108,6 +118,7 @@ class _AnimatedBorderRevealState extends State<AnimatedBorderReveal>
             color: widget.borderColor ?? Theme.of(context).colorScheme.primary,
             borderWidth: widget.borderWidth,
             borderRadius: widget.borderRadius ?? BorderRadius.zero,
+            reduceMotion: _reduceMotion,
           ),
           child: child,
         );
@@ -122,17 +133,19 @@ class _BorderRevealPainter extends CustomPainter {
   final Color color;
   final double borderWidth;
   final BorderRadius borderRadius;
+  final bool reduceMotion;
 
   _BorderRevealPainter({
     required this.progress,
     required this.color,
     required this.borderWidth,
     required this.borderRadius,
+    required this.reduceMotion,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (progress <= 0 || progress >= 0.999) return;
+    if (reduceMotion || progress <= 0 || progress >= 0.999) return;
     if (borderWidth <= 0 ||
         size.width <= borderWidth ||
         size.height <= borderWidth) {
@@ -140,9 +153,11 @@ class _BorderRevealPainter extends CustomPainter {
     }
 
     final clampedProgress = progress.clamp(0.0, 1.0);
+    final endFade = clampedProgress > 0.9 ? (1.0 - clampedProgress) / 0.1 : 1.0;
 
     final paint = Paint()
-      ..color = color.withAlpha((255 * (1 - clampedProgress * 0.5)).round())
+      ..color =
+          color.withAlpha((255 * (1 - clampedProgress * 0.5) * endFade).round())
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth
       ..strokeCap = StrokeCap.round;
@@ -180,7 +195,8 @@ class _BorderRevealPainter extends CustomPainter {
     return oldDelegate.progress != progress ||
         oldDelegate.color != color ||
         oldDelegate.borderWidth != borderWidth ||
-        oldDelegate.borderRadius != borderRadius;
+        oldDelegate.borderRadius != borderRadius ||
+        oldDelegate.reduceMotion != reduceMotion;
   }
 }
 
@@ -208,6 +224,10 @@ class _AnimatedRevealState extends State<AnimatedReveal>
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<Offset> _offset;
+  Timer? _delayTimer;
+
+  bool get _reduceMotion => WidgetsBinding
+      .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
 
   @override
   void initState() {
@@ -218,25 +238,61 @@ class _AnimatedRevealState extends State<AnimatedReveal>
     );
 
     _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: AppTheme.easeStandard),
     );
 
     _offset = Tween<Offset>(
       begin: widget.slideUp ? const Offset(0, 0.05) : Offset.zero,
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _controller, curve: AppTheme.easeStandard),
     );
 
-    Future.delayed(widget.delay, () {
-      if (mounted) {
-        _controller.forward();
-      }
+    _scheduleReveal();
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedReveal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.delay != widget.delay ||
+        oldWidget.duration != widget.duration ||
+        oldWidget.slideUp != widget.slideUp) {
+      _controller.duration = widget.duration;
+      _offset = Tween<Offset>(
+        begin: widget.slideUp ? const Offset(0, 0.05) : Offset.zero,
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(parent: _controller, curve: AppTheme.easeStandard),
+      );
+      _scheduleReveal();
+    }
+  }
+
+  void _scheduleReveal() {
+    _delayTimer?.cancel();
+
+    if (_reduceMotion) {
+      _controller.value = 1.0;
+      return;
+    }
+
+    if (widget.delay == Duration.zero) {
+      _controller
+        ..reset()
+        ..forward();
+      return;
+    }
+
+    _controller.reset();
+    _delayTimer = Timer(widget.delay, () {
+      if (!mounted) return;
+      _controller.forward();
     });
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

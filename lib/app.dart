@@ -19,15 +19,27 @@ class _SweetspotAppState extends State<SweetspotApp> {
     return MaterialApp(
       title: 'Sweetspot',
       theme: AppTheme.dark(),
-      home: _showSplash
-          ? SplashScreen(
-              onComplete: () {
-                setState(() {
-                  _showSplash = false;
-                });
-              },
-            )
-          : const RoomDesignScreen(),
+      home: AnimatedSwitcher(
+        duration: AppTheme.motionMedium,
+        switchInCurve: AppTheme.easeStandard,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: _showSplash
+            ? SplashScreen(
+                key: const ValueKey('splash_screen'),
+                onComplete: () {
+                  setState(() {
+                    _showSplash = false;
+                  });
+                },
+              )
+            : const RoomDesignScreen(key: ValueKey('room_design_screen')),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
