@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// A widget that draws an animated border around its child
-/// The border "traces" around the edges with a drawing effect
 class AnimatedBorderReveal extends StatefulWidget {
   final Widget child;
   final Duration delay;
