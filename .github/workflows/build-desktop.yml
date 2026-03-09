@@ -67,25 +67,25 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cd build/linux/x64/release
-          tar -czf ${{ matrix.archive_name }} bundle/
+          tar -czf ../../../../${{ matrix.archive_name }} bundle/
 
       - name: Archive build (Windows)
         if: runner.os == 'Windows'
         run: |
           cd build/windows/x64/runner
-          7z a ${{ matrix.archive_name }} Release/
+          7z a ..\..\..\..\${{ matrix.archive_name }} Release/
 
       - name: Archive build (macOS)
         if: runner.os == 'macOS'
         run: |
           cd build/macos/Build/Products/Release
-          zip -r ${{ matrix.archive_name }} *.app
+          zip -r ../../../../../${{ matrix.archive_name }} *.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}/../${{ matrix.archive_name }}
+          path: ${{ matrix.archive_name }}
           if-no-files-found: error
 
   release:
