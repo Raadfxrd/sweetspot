@@ -10,7 +10,7 @@ void main() {
   const calculator = AimingCalculator();
 
   group('AimingCalculator', () {
-    test('recommended aiming point is 0.3m behind listening position', () {
+    test('recommended aiming point is 1.5m behind listening position', () {
       const left = Speaker(
         channel: SpeakerChannel.left,
         position: RoomPosition(1.0, 1.0),
@@ -30,7 +30,7 @@ void main() {
       );
 
       expect(aimingPoint.x, closeTo(2.0, 0.01));
-      expect(aimingPoint.y, closeTo(3.3, 0.01));
+      expect(aimingPoint.y, closeTo(4.5, 0.01));
     });
 
     test('calculates required toe-in for left speaker', () {
@@ -116,7 +116,7 @@ void main() {
       );
 
       expect(aimingPoint.x, closeTo(2.5, 0.01));
-      expect(aimingPoint.y, closeTo(4.3, 0.01));
+      expect(aimingPoint.y, closeTo(5.5, 0.01));
     });
   });
 }

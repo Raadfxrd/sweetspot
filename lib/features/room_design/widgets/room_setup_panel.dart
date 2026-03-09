@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../acoustic/models/optimization_result.dart';
 import '../../acoustic/models/sweet_spot_result.dart';
 import '../models/room.dart';
 import '../models/room_state.dart';
@@ -21,6 +22,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
   Room? _lastSeenRoom;
 
   bool _expandRoom = true;
+  bool _expandBlockers = true;
   bool _expandAnalysis = true;
   bool _expandToeIn = false;
 
@@ -41,6 +43,7 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
   Widget build(BuildContext context) {
     final roomState = ref.watch(roomProvider);
     final sweetSpot = ref.watch(sweetSpotResultProvider);
+    final optimization = ref.watch(optimizationResultProvider);
     final room = roomState.room;
 
     if (!_initialized) {
@@ -60,10 +63,8 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
       color: AppTheme.surface,
       child: Column(
         children: [
-          // ── Header stat bar ──────────────────────────────────
           _buildHeader(sweetSpot, room),
           const Divider(height: 0.5, thickness: 0.5, color: AppTheme.border),
-          // ── Scrollable sections ──────────────────────────────
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -77,12 +78,22 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
                 ),
                 const SizedBox(height: 8),
                 _buildSection(
+                  title: 'Blockers',
+                  icon: Icons.block_rounded,
+                  expanded: _expandBlockers,
+                  onToggle: () =>
+                      setState(() => _expandBlockers = !_expandBlockers),
+                  child: _buildBlockersPanel(roomState),
+                ),
+                const SizedBox(height: 8),
+                _buildSection(
                   title: 'Analysis',
                   icon: Icons.bar_chart_rounded,
                   expanded: _expandAnalysis,
                   onToggle: () =>
                       setState(() => _expandAnalysis = !_expandAnalysis),
-                  child: _buildSweetSpotPanel(sweetSpot, roomState),
+                  child:
+                      _buildSweetSpotPanel(sweetSpot, roomState, optimization),
                 ),
                 const SizedBox(height: 8),
                 _buildSection(
@@ -101,8 +112,6 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
       ),
     );
   }
-
-  // ── Header ──────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(SweetSpotResult result, Room room) {
     final accuracyPercent = (result.triangleAccuracy * 100).toInt();
@@ -177,8 +186,6 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
     );
   }
 
-  // ── Collapsible section ──────────────────────────────────────────────────────
-
   Widget _buildSection({
     required String title,
     required IconData icon,
@@ -239,8 +246,6 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
     );
   }
 
-  // ── Room dimensions ──────────────────────────────────────────────────────────
-
   Widget _buildDimensionFields(Room room) {
     return Column(
       children: [
@@ -297,9 +302,11 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
     }
   }
 
-  // ── Analysis panel ───────────────────────────────────────────────────────────
-
-  Widget _buildSweetSpotPanel(SweetSpotResult result, RoomState roomState) {
+  Widget _buildSweetSpotPanel(
+    SweetSpotResult result,
+    RoomState roomState,
+    OptimizationResult optimization,
+  ) {
     final accuracyPercent = (result.triangleAccuracy * 100).toInt();
     final accuracyColor = result.isOptimal
         ? AppTheme.sweetSpotGreen
@@ -325,7 +332,6 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
         _buildInfoRow('Listening distance',
             '${result.listeningDistance.toStringAsFixed(2)} m'),
         const SizedBox(height: 8),
-        // Feedback chip
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -355,6 +361,186 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
             ],
           ),
         ),
+        const SizedBox(height: 10),
+        _buildOptimizationSummary(optimization),
+      ],
+    );
+  }
+
+  Widget _buildOptimizationSummary(OptimizationResult optimization) {
+    final currentPercent =
+        (optimization.currentScore.triangleAccuracy * 100).toStringAsFixed(0);
+    final optimizedPercent =
+        (optimization.optimizedScore.triangleAccuracy * 100).toStringAsFixed(0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.primary,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: AppTheme.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Optimizer guidance',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _buildInfoRow('Current score', '$currentPercent%'),
+          _buildInfoRow('Optimized score', '$optimizedPercent%',
+              valueColor: AppTheme.accent),
+          const SizedBox(height: 6),
+          if (!optimization.hasMeaningfulImprovement)
+            const Text(
+              'Current setup is already close to optimal for this room and blocker map.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                height: 1.4,
+              ),
+            )
+          else if (optimization.instructions.isEmpty)
+            const Text(
+              'A better score was found, but suggested changes are below the practical threshold.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                height: 1.4,
+              ),
+            )
+          else
+            ...optimization.instructions.map(
+              (instruction) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(
+                        Icons.arrow_right_rounded,
+                        size: 14,
+                        color: AppTheme.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        instruction.text,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 11,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBlockersPanel(RoomState roomState) {
+    final blockers = roomState.blockerZones;
+    final hoveredId = ref.watch(hoveredBlockerIdProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Use the map toolbar and drag in Blockers mode to add unavailable areas.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 11,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (blockers.isEmpty)
+          const Text(
+            'No blocked zones yet.',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+          )
+        else
+          ...blockers.map(
+            (zone) {
+              final isHovered = zone.id == hoveredId;
+              return MouseRegion(
+                onEnter: (_) =>
+                    ref.read(hoveredBlockerIdProvider.notifier).state = zone.id,
+                onExit: (_) {
+                  if (ref.read(hoveredBlockerIdProvider) == zone.id) {
+                    ref.read(hoveredBlockerIdProvider.notifier).state = null;
+                  }
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isHovered
+                        ? AppTheme.accent.withAlpha(18)
+                        : AppTheme.surface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isHovered ? AppTheme.accent : AppTheme.border,
+                      width: isHovered ? 0.9 : 0.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'B${zone.id}  x:${zone.x.toStringAsFixed(2)}  y:${zone.y.toStringAsFixed(2)}  '
+                          'w:${zone.width.toStringAsFixed(2)}  h:${zone.height.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: isHovered
+                                ? AppTheme.accent
+                                : AppTheme.textPrimary,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            fontWeight:
+                                isHovered ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 14),
+                        color: AppTheme.textSecondary,
+                        tooltip: 'Remove blocker',
+                        onPressed: () => ref
+                            .read(roomProvider.notifier)
+                            .removeBlockedZone(zone.id),
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minHeight: 24, minWidth: 24),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        if (blockers.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () =>
+                  ref.read(roomProvider.notifier).clearBlockedZones(),
+              icon: const Icon(Icons.delete_outline_rounded, size: 14),
+              label: const Text('Clear all'),
+            ),
+          ),
       ],
     );
   }
@@ -392,8 +578,6 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
       ],
     );
   }
-
-  // ── Toe-in / tuning panel ────────────────────────────────────────────────────
 
   Widget _buildSpeakerToeIn(RoomState roomState) {
     final recommendedLeftToeIn = ref.watch(recommendedLeftToeInProvider);
@@ -564,8 +748,6 @@ class _RoomSetupPanelState extends ConsumerState<RoomSetupPanel> {
       ],
     );
   }
-
-  // ── Shared widgets ───────────────────────────────────────────────────────────
 
   Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
     return Padding(

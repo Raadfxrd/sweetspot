@@ -23,6 +23,13 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
   bool _showReflections = true;
   bool _showTriangle = true;
   bool _showMeasurements = true;
+  bool _drawBlockersMode = false;
+
+  Offset? _blockerStartPx;
+  Offset? _blockerCurrentPx;
+  int? _activeBlockerDragId;
+  Offset? _activeBlockerDragStartPx;
+  RoomPosition? _activeBlockerOriginalTopLeft;
 
   static const double _hitRadius = 20.0;
   static const double _measurementHitPadding = 6.0;
@@ -33,6 +40,7 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     final sweetSpotResult = ref.watch(sweetSpotResultProvider);
     final reflections = ref.watch(reflectionPointsProvider);
     final recommendedAimingPoint = ref.watch(recommendedAimingPointProvider);
+    final hoveredBlockerId = ref.watch(hoveredBlockerIdProvider);
 
     final room = roomState.room;
 
@@ -64,6 +72,7 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
                 showReflections: _showReflections,
                 showTriangle: _showTriangle,
                 showMeasurements: _showMeasurements,
+                hoveredBlockerId: hoveredBlockerId,
               );
 
               return Container(
@@ -75,22 +84,85 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
                   child: Padding(
                     padding: const EdgeInsets.all(padding),
                     child: Center(
-                      child: GestureDetector(
-                        onTapUp: (details) =>
-                            _onTapUp(details, roomState, roomPainter),
-                        onPanStart: (details) => _onPanStart(
-                          details,
+                      child: MouseRegion(
+                        onHover: (event) => _onCanvasHover(
+                          event.localPosition,
                           roomState,
                           canvasWidth,
-                          canvasHeight,
                         ),
-                        onPanUpdate: (details) =>
-                            _onPanUpdate(details, canvasWidth, canvasHeight),
-                        onPanEnd: (_) => _onPanEnd(),
-                        child: SizedBox(
-                          width: canvasWidth,
-                          height: canvasHeight,
-                          child: CustomPaint(painter: roomPainter),
+                        onExit: (_) {
+                          if (_activeBlockerDragId == null) {
+                            ref.read(hoveredBlockerIdProvider.notifier).state =
+                                null;
+                          }
+                        },
+                        child: GestureDetector(
+                          onTapUp: (details) =>
+                              _onTapUp(details, roomState, roomPainter),
+                          onPanStart: (details) {
+                            if (_drawBlockersMode) {
+                              _onBlockerPanStart(
+                                details,
+                                roomState,
+                                canvasWidth,
+                                canvasHeight,
+                              );
+                              return;
+                            }
+                            _onPanStart(
+                              details,
+                              roomState,
+                              canvasWidth,
+                              canvasHeight,
+                            );
+                          },
+                          onPanUpdate: (details) {
+                            if (_drawBlockersMode) {
+                              _onBlockerPanUpdate(
+                                details,
+                                roomState,
+                                canvasWidth,
+                                canvasHeight,
+                              );
+                              return;
+                            }
+                            _onPanUpdate(details, canvasWidth, canvasHeight);
+                          },
+                          onPanEnd: (_) {
+                            if (_drawBlockersMode) {
+                              _onBlockerPanEnd(
+                                  roomState, canvasWidth, canvasHeight);
+                              return;
+                            }
+                            _onPanEnd();
+                          },
+                          child: SizedBox(
+                            width: canvasWidth,
+                            height: canvasHeight,
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                    child: CustomPaint(painter: roomPainter)),
+                                if (_blockerPreviewRect != null)
+                                  Positioned.fromRect(
+                                    rect: _blockerPreviewRect!,
+                                    child: IgnorePointer(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.sweetSpotRed
+                                              .withAlpha(45),
+                                          border: Border.all(
+                                            color: AppTheme.sweetSpotRed
+                                                .withAlpha(170),
+                                            width: 1,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -104,6 +176,12 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     );
   }
 
+  Rect? get _blockerPreviewRect {
+    if (_activeBlockerDragId != null) return null;
+    if (_blockerStartPx == null || _blockerCurrentPx == null) return null;
+    return Rect.fromPoints(_blockerStartPx!, _blockerCurrentPx!);
+  }
+
   Widget _buildToolbar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
@@ -111,36 +189,53 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
         color: AppTheme.surface,
         border: Border(bottom: BorderSide(color: AppTheme.border, width: 0.5)),
       ),
-      child: Row(
-        children: [
-          _ToolbarToggle(
-            icon: Icons.grid_4x4_rounded,
-            label: 'Grid',
-            active: _showGrid,
-            onTap: () => setState(() => _showGrid = !_showGrid),
-          ),
-          const SizedBox(width: 4),
-          _ToolbarToggle(
-            icon: Icons.change_history_rounded,
-            label: 'Triangle',
-            active: _showTriangle,
-            onTap: () => setState(() => _showTriangle = !_showTriangle),
-          ),
-          const SizedBox(width: 4),
-          _ToolbarToggle(
-            icon: Icons.spoke_rounded,
-            label: 'Rays',
-            active: _showReflections,
-            onTap: () => setState(() => _showReflections = !_showReflections),
-          ),
-          const SizedBox(width: 4),
-          _ToolbarToggle(
-            icon: Icons.straighten_rounded,
-            label: 'Measures',
-            active: _showMeasurements,
-            onTap: () => setState(() => _showMeasurements = !_showMeasurements),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _ToolbarToggle(
+              icon: Icons.grid_4x4_rounded,
+              label: 'Grid',
+              active: _showGrid,
+              onTap: () => setState(() => _showGrid = !_showGrid),
+            ),
+            const SizedBox(width: 4),
+            _ToolbarToggle(
+              icon: Icons.change_history_rounded,
+              label: 'Triangle',
+              active: _showTriangle,
+              onTap: () => setState(() => _showTriangle = !_showTriangle),
+            ),
+            const SizedBox(width: 4),
+            _ToolbarToggle(
+              icon: Icons.spoke_rounded,
+              label: 'Rays',
+              active: _showReflections,
+              onTap: () => setState(() => _showReflections = !_showReflections),
+            ),
+            const SizedBox(width: 4),
+            _ToolbarToggle(
+              icon: Icons.straighten_rounded,
+              label: 'Measures',
+              active: _showMeasurements,
+              onTap: () =>
+                  setState(() => _showMeasurements = !_showMeasurements),
+            ),
+            const SizedBox(width: 4),
+            _ToolbarToggle(
+              icon: Icons.block_rounded,
+              label: 'Blockers',
+              active: _drawBlockersMode,
+              onTap: () => setState(() {
+                _drawBlockersMode = !_drawBlockersMode;
+                if (!_drawBlockersMode) {
+                  _blockerStartPx = null;
+                  _blockerCurrentPx = null;
+                }
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -339,6 +434,125 @@ class _RoomCanvasState extends ConsumerState<RoomCanvas> {
     final dx = a.dx - b.dx;
     final dy = a.dy - b.dy;
     return math.sqrt(dx * dx + dy * dy);
+  }
+
+  void _onBlockerPanStart(
+    DragStartDetails details,
+    RoomState roomState,
+    double canvasWidth,
+    double canvasHeight,
+  ) {
+    final clamped =
+        _clampToCanvas(details.localPosition, canvasWidth, canvasHeight);
+    final scale = canvasWidth / roomState.room.widthMeters;
+    final hitId = _blockerIdAt(clamped, roomState, scale);
+
+    if (hitId != null) {
+      final zone = roomState.blockerZones.firstWhere((z) => z.id == hitId);
+      _activeBlockerDragId = hitId;
+      _activeBlockerDragStartPx = clamped;
+      _activeBlockerOriginalTopLeft = RoomPosition(zone.x, zone.y);
+      ref.read(hoveredBlockerIdProvider.notifier).state = hitId;
+      return;
+    }
+
+    setState(() {
+      _blockerStartPx = clamped;
+      _blockerCurrentPx = _blockerStartPx;
+      _activeBlockerDragId = null;
+      _activeBlockerDragStartPx = null;
+      _activeBlockerOriginalTopLeft = null;
+    });
+  }
+
+  void _onBlockerPanUpdate(
+    DragUpdateDetails details,
+    RoomState roomState,
+    double canvasWidth,
+    double canvasHeight,
+  ) {
+    final clamped =
+        _clampToCanvas(details.localPosition, canvasWidth, canvasHeight);
+
+    if (_activeBlockerDragId != null &&
+        _activeBlockerDragStartPx != null &&
+        _activeBlockerOriginalTopLeft != null) {
+      final scale = canvasWidth / roomState.room.widthMeters;
+      final dxMeters = (clamped.dx - _activeBlockerDragStartPx!.dx) / scale;
+      final dyMeters = (clamped.dy - _activeBlockerDragStartPx!.dy) / scale;
+      ref.read(roomProvider.notifier).moveBlockedZone(
+            zoneId: _activeBlockerDragId!,
+            topLeft: RoomPosition(
+              _activeBlockerOriginalTopLeft!.x + dxMeters,
+              _activeBlockerOriginalTopLeft!.y + dyMeters,
+            ),
+          );
+      return;
+    }
+
+    if (_blockerStartPx == null) return;
+    setState(() {
+      _blockerCurrentPx = clamped;
+    });
+  }
+
+  void _onBlockerPanEnd(
+    RoomState roomState,
+    double canvasWidth,
+    double canvasHeight,
+  ) {
+    if (_activeBlockerDragId != null) {
+      _activeBlockerDragId = null;
+      _activeBlockerDragStartPx = null;
+      _activeBlockerOriginalTopLeft = null;
+      return;
+    }
+
+    final start = _blockerStartPx;
+    final end = _blockerCurrentPx;
+
+    if (start != null && end != null) {
+      final scale = canvasWidth / roomState.room.widthMeters;
+      ref.read(roomProvider.notifier).addBlockedZoneFromPoints(
+            RoomPosition(start.dx / scale, start.dy / scale),
+            RoomPosition(end.dx / scale, end.dy / scale),
+          );
+    }
+
+    setState(() {
+      _blockerStartPx = null;
+      _blockerCurrentPx = null;
+    });
+  }
+
+  void _onCanvasHover(
+    Offset localPosition,
+    RoomState roomState,
+    double canvasWidth,
+  ) {
+    final scale = canvasWidth / roomState.room.widthMeters;
+    final id = _blockerIdAt(localPosition, roomState, scale);
+    if (ref.read(hoveredBlockerIdProvider) != id) {
+      ref.read(hoveredBlockerIdProvider.notifier).state = id;
+    }
+  }
+
+  int? _blockerIdAt(Offset localPosition, RoomState roomState, double scale) {
+    final roomPos =
+        RoomPosition(localPosition.dx / scale, localPosition.dy / scale);
+    for (final zone in roomState.blockerZones.reversed) {
+      if (zone.contains(roomPos)) {
+        return zone.id;
+      }
+    }
+    return null;
+  }
+
+  Offset _clampToCanvas(Offset pos, double canvasWidth, double canvasHeight) {
+    return Offset(
+      pos.dx.clamp(0.0, canvasWidth).toDouble(),
+      pos.dy.clamp(0.0, canvasHeight).toDouble(),
+    );
   }
 }
 

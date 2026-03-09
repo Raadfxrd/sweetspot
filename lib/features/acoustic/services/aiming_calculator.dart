@@ -7,6 +7,8 @@ import '../../room_design/models/speaker.dart';
 class AimingCalculator {
   const AimingCalculator();
 
+  static const double recommendedBehindDistanceMeters = 1.5;
+
   RoomPosition calculateRecommendedAimingPoint({
     required Speaker leftSpeaker,
     required Speaker rightSpeaker,
@@ -30,11 +32,9 @@ class AimingCalculator {
     final ndx = dx / distToListener;
     final ndy = dy / distToListener;
 
-    const behindDistance = 0.3;
-
     return RoomPosition(
-      lpPos.x + ndx * behindDistance,
-      lpPos.y + ndy * behindDistance,
+      lpPos.x + ndx * recommendedBehindDistanceMeters,
+      lpPos.y + ndy * recommendedBehindDistanceMeters,
     );
   }
 

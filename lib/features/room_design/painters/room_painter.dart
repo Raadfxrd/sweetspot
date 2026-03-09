@@ -44,6 +44,7 @@ class RoomPainter extends CustomPainter {
   final bool showReflections;
   final bool showTriangle;
   final bool showMeasurements;
+  final int? hoveredBlockerId;
 
   const RoomPainter({
     required this.roomState,
@@ -55,6 +56,7 @@ class RoomPainter extends CustomPainter {
     this.showReflections = true,
     this.showTriangle = true,
     this.showMeasurements = true,
+    this.hoveredBlockerId,
   });
 
   @override
@@ -71,32 +73,35 @@ class RoomPainter extends CustomPainter {
       _drawGrid(canvas, room.widthMeters, room.lengthMeters, roomW, roomH);
     }
 
-    // 3. Draw triangle
+    // 3. Draw blocked areas on top of the grid.
+    _drawBlockedZones(canvas);
+
+    // 4. Draw triangle
     if (showTriangle) {
       _drawStereoTriangle(canvas);
     }
 
-    // 4. Draw reflection points
+    // 5. Draw reflection points
     if (showReflections) {
       _drawReflectionPoints(canvas);
     }
 
-    // 5. Draw measurements (distances to walls)
+    // 6. Draw measurements (distances to walls)
     if (showMeasurements) {
       _drawMeasurements(canvas);
     }
 
-    // 6. Draw speakers
+    // 7. Draw speakers
     _drawSpeaker(canvas, roomState.leftSpeaker);
     _drawSpeaker(canvas, roomState.rightSpeaker);
 
-    // 7. Draw listening position
+    // 8. Draw listening position
     _drawListeningPosition(canvas);
 
-    // 8. Draw recommended aiming position
+    // 9. Draw recommended aiming position
     drawRecommendedAimingPoint(canvas, recommendedAimingPoint);
 
-    // 9. Draw room border (on top for clean edges)
+    // 10. Draw room border (on top for clean edges)
     _drawRoomBorder(canvas, roomW, roomH);
   }
 
@@ -821,6 +826,73 @@ class RoomPainter extends CustomPainter {
     );
   }
 
+  void _drawBlockedZones(Canvas canvas) {
+    if (roomState.blockerZones.isEmpty) return;
+
+    final fillPaint = Paint()
+      ..color = AppTheme.sweetSpotRed.withAlpha(50)
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = AppTheme.sweetSpotRed.withAlpha(150)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    final hatchPaint = Paint()
+      ..color = AppTheme.sweetSpotRed.withAlpha(70)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    for (final blocker in roomState.blockerZones) {
+      final isHovered = blocker.id == hoveredBlockerId;
+      final rect = Rect.fromLTWH(
+        blocker.x * scale,
+        blocker.y * scale,
+        blocker.width * scale,
+        blocker.height * scale,
+      );
+
+      canvas.drawRect(rect, fillPaint);
+
+      canvas.save();
+      canvas.clipRect(rect);
+      const spacing = 12.0;
+      var x = rect.left - rect.height;
+      while (x < rect.right) {
+        canvas.drawLine(
+          Offset(x, rect.top),
+          Offset(x + rect.height, rect.bottom),
+          hatchPaint,
+        );
+        x += spacing;
+      }
+      canvas.restore();
+
+      canvas.drawRect(
+        rect,
+        isHovered
+            ? (Paint()
+              ..color = AppTheme.accent.withAlpha(220)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.0)
+            : borderPaint,
+      );
+
+      if (isHovered) {
+        _drawText(
+          canvas,
+          'B${blocker.id}',
+          Offset(rect.left + 4, rect.top + 3),
+          const TextStyle(
+            color: AppTheme.accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'monospace',
+          ),
+          background: AppTheme.background.withAlpha(190),
+        );
+      }
+    }
+  }
+
   @override
   bool shouldRepaint(RoomPainter oldDelegate) {
     return oldDelegate.roomState != roomState ||
@@ -831,7 +903,8 @@ class RoomPainter extends CustomPainter {
         oldDelegate.showGrid != showGrid ||
         oldDelegate.showReflections != showReflections ||
         oldDelegate.showTriangle != showTriangle ||
-        oldDelegate.showMeasurements != showMeasurements;
+        oldDelegate.showMeasurements != showMeasurements ||
+        oldDelegate.hoveredBlockerId != hoveredBlockerId;
   }
 
   List<MeasurementHitTarget> measurementHitTargets() {

@@ -100,6 +100,13 @@ class RoomDesignScreen extends ConsumerWidget {
                 description:
                     'Tap any measurement label to enter an exact distance. Works for speakers and listening position.',
               ),
+              SizedBox(height: 12),
+              _HelpItem(
+                icon: Icons.block_rounded,
+                title: 'Room blockers',
+                description:
+                    'Use Blockers mode in the canvas toolbar and drag to mark furniture or unavailable areas.',
+              ),
             ],
           ),
         ),
@@ -122,6 +129,7 @@ class RoomDesignScreen extends ConsumerWidget {
 
 class _AppBarChip extends StatelessWidget {
   final String label;
+
   const _AppBarChip({required this.label});
 
   @override
