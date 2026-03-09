@@ -176,10 +176,10 @@ class _BorderRevealPainter extends CustomPainter {
     );
 
     final path = Path()..addRRect(rrect);
-    final metrics = path.computeMetrics();
-    if (metrics.isEmpty) return;
+    final metricIterator = path.computeMetrics().iterator;
+    if (!metricIterator.moveNext()) return;
 
-    final pathMetric = metrics.first;
+    final pathMetric = metricIterator.current;
     final extractPath = pathMetric.extractPath(
       0,
       pathMetric.length * clampedProgress,

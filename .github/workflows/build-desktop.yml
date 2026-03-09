@@ -18,17 +18,20 @@ jobs:
             os: ubuntu-latest
             target: linux
             artifact_name: sweetspot-linux
-            artifact_path: build/linux/x64/release/bundle/**
+            artifact_path: build/linux/x64/release/bundle
+            archive_name: sweetspot-linux.tar.gz
           - name: Windows
             os: windows-latest
             target: windows
             artifact_name: sweetspot-windows
-            artifact_path: build/windows/x64/runner/Release/**
+            artifact_path: build/windows/x64/runner/Release
+            archive_name: sweetspot-windows.zip
           - name: macOS
             os: macos-latest
             target: macos
             artifact_name: sweetspot-macos
-            artifact_path: build/macos/Build/Products/Release/*.app
+            artifact_path: build/macos/Build/Products/Release
+            archive_name: sweetspot-macos.zip
 
     steps:
       - name: Checkout
@@ -60,10 +63,98 @@ jobs:
       - name: Build release
         run: flutter build ${{ matrix.target }} --release
 
+      - name: Archive build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd build/linux/x64/release
+          tar -czf ${{ matrix.archive_name }} bundle/
+
+      - name: Archive build (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd build/windows/x64/runner
+          7z a ${{ matrix.archive_name }} Release/
+
+      - name: Archive build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r ${{ matrix.archive_name }} *.app
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}
+          path: ${{ matrix.artifact_path }}/../${{ matrix.archive_name }}
           if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag and increment version
+        id: version
+        run: |
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest semantic version tag (format: vX.Y.Z)
+          LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -n 1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # No existing tags, start at v1.0.0
+            NEW_VERSION="v1.0.0"
+          else
+            # Parse version components
+            VERSION=${LATEST_TAG#v}
+            MAJOR=$(echo $VERSION | cut -d. -f1)
+            MINOR=$(echo $VERSION | cut -d. -f2)
+            PATCH=$(echo $VERSION | cut -d. -f3)
+          
+            # Increment patch version
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          
+          echo "tag=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Previous version: ${LATEST_TAG:-none}"
+          echo "New version: $NEW_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Sweetspot ${{ steps.version.outputs.tag }}
+          body: |
+            ## Desktop builds for Linux, Windows, and macOS
+            
+            **Commit:** ${{ github.sha }}
+            **Built:** $(date +'%Y-%m-%d %H:%M:%S UTC')
+            
+            ### Downloads
+            - **Linux**: `sweetspot-linux.tar.gz` (extract and run `bundle/sweetspot`)
+            - **Windows**: `sweetspot-windows.zip` (extract and run `sweetspot.exe`)
+            - **macOS**: `sweetspot-macos.zip` (extract and open `sweetspot.app`)
+            
+            ### Changelog
+            See commit history for changes since previous release.
+          files: |
+            artifacts/sweetspot-linux/sweetspot-linux.tar.gz
+            artifacts/sweetspot-windows/sweetspot-windows.zip
+            artifacts/sweetspot-macos/sweetspot-macos.zip
+          draft: false
+          prerelease: false
 
