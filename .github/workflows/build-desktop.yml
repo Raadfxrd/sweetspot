@@ -8,18 +8,10 @@ on:
       - opened
       - synchronize
       - reopened
-  workflow_dispatch:
-    inputs:
-      release_version:
-        description: "Release version to publish (e.g. 1.2.3 or v1.2.3)"
-        required: true
-        type: string
 
 jobs:
   build:
-    if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'development') ||
-      github.event_name == 'workflow_dispatch'
+    if: github.event.pull_request.head.ref == 'development'
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -30,19 +22,16 @@ jobs:
             os: ubuntu-latest
             target: linux
             artifact_name: sweetspot-linux
-            artifact_path: build/linux/x64/release/bundle
             archive_name: sweetspot-linux.tar.gz
           - name: Windows
             os: windows-latest
             target: windows
             artifact_name: sweetspot-windows
-            artifact_path: build/windows/x64/runner/Release
             archive_name: sweetspot-windows.zip
           - name: macOS
             os: macos-latest
             target: macos
             artifact_name: sweetspot-macos
-            artifact_path: build/macos/Build/Products/Release
             archive_name: sweetspot-macos.zip
 
     steps:
@@ -99,75 +88,3 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.archive_name }}
           if-no-files-found: error
-
-  release:
-    if: github.event_name == 'workflow_dispatch'
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Validate and prepare release version
-        id: version
-        run: |
-          RAW_VERSION="${{ github.event.inputs.release_version }}"
-          if [[ ! "$RAW_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid version '$RAW_VERSION'. Use 1.2.3 or v1.2.3."
-            exit 1
-          fi
-
-          TAG="v${RAW_VERSION#v}"
-          git fetch --tags
-
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. Choose a new version."
-            exit 1
-          fi
-
-          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
-          if [ "$PUBSPEC_VERSION" != "${TAG#v}" ]; then
-            echo "::warning::pubspec.yaml version ($PUBSPEC_VERSION) differs from release tag (${TAG#v})."
-          fi
-
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-
-      - name: Build release metadata
-        id: build_meta
-        run: echo "built_at=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Sweetspot ${{ steps.version.outputs.tag }}
-          body: |
-            ## Desktop builds for Linux, Windows, and macOS
-
-            **Version:** ${{ steps.version.outputs.tag }}
-            **Commit:** ${{ github.sha }}
-            **Built:** ${{ steps.build_meta.outputs.built_at }}
-
-            ### Downloads
-            - **Linux**: `sweetspot-linux.tar.gz` (extract and run `bundle/sweetspot`)
-            - **Windows**: `sweetspot-windows.zip` (extract and run `sweetspot.exe`)
-            - **macOS**: `sweetspot-macos.zip` (extract and open `sweetspot.app`)
-
-            ### Changelog
-            See commit history for changes since previous release.
-          files: |
-            artifacts/sweetspot-linux/sweetspot-linux.tar.gz
-            artifacts/sweetspot-windows/sweetspot-windows.zip
-            artifacts/sweetspot-macos/sweetspot-macos.zip
-          draft: false
-          prerelease: false
