@@ -73,9 +73,9 @@ Default Flutter output directories:
 Desktop workflow behavior:
 
 - Push to `development` runs `.github/workflows/ci-development.yml` (dependency install + `flutter analyze`)
-- Pull request from `development` to `main` runs `.github/workflows/build-desktop.yml` and builds Linux/Windows/macOS
-  artifacts
-- Publishing a GitHub Release is manual via **Run workflow** on `Build Desktop (Linux, Windows, macOS)`
+- Pull request from `development` to `main` runs `.github/workflows/build-desktop.yml` (build validation only)
+- Publishing a GitHub Release uses `.github/workflows/release-desktop.yml`
+- Release is manual via **Run workflow** on `Release Desktop (Linux, Windows, macOS)`
 - `release_version` is required before release (for example `1.2.3` or `v1.2.3`)
 - Archives are published as:
     - `sweetspot-linux.tar.gz`
