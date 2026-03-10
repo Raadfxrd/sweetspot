@@ -1,13 +1,25 @@
 name: Build Desktop (Linux, Windows, macOS)
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version to publish (e.g. 1.2.3 or v1.2.3)"
+        required: true
+        type: string
 
 jobs:
   build:
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'development') ||
+      github.event_name == 'workflow_dispatch'
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -89,6 +101,7 @@ jobs:
           if-no-files-found: error
 
   release:
+    if: github.event_name == 'workflow_dispatch'
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
@@ -100,33 +113,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get latest tag and increment version
+      - name: Validate and prepare release version
         id: version
         run: |
-          # Fetch all tags
-          git fetch --tags
-          
-          # Get the latest semantic version tag (format: vX.Y.Z)
-          LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -n 1)
-          
-          if [ -z "$LATEST_TAG" ]; then
-            # No existing tags, start at v1.0.0
-            NEW_VERSION="v1.0.0"
-          else
-            # Parse version components
-            VERSION=${LATEST_TAG#v}
-            MAJOR=$(echo $VERSION | cut -d. -f1)
-            MINOR=$(echo $VERSION | cut -d. -f2)
-            PATCH=$(echo $VERSION | cut -d. -f3)
-          
-            # Increment patch version
-            PATCH=$((PATCH + 1))
-            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          RAW_VERSION="${{ github.event.inputs.release_version }}"
+          if [[ ! "$RAW_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version '$RAW_VERSION'. Use 1.2.3 or v1.2.3."
+            exit 1
           fi
-          
-          echo "tag=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Previous version: ${LATEST_TAG:-none}"
-          echo "New version: $NEW_VERSION"
+
+          TAG="v${RAW_VERSION#v}"
+          git fetch --tags
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Choose a new version."
+            exit 1
+          fi
+
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          if [ "$PUBSPEC_VERSION" != "${TAG#v}" ]; then
+            echo "::warning::pubspec.yaml version ($PUBSPEC_VERSION) differs from release tag (${TAG#v})."
+          fi
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Build release metadata
+        id: build_meta
+        run: echo "built_at=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -140,15 +153,16 @@ jobs:
           name: Sweetspot ${{ steps.version.outputs.tag }}
           body: |
             ## Desktop builds for Linux, Windows, and macOS
-            
+
+            **Version:** ${{ steps.version.outputs.tag }}
             **Commit:** ${{ github.sha }}
-            **Built:** $(date +'%Y-%m-%d %H:%M:%S UTC')
-            
+            **Built:** ${{ steps.build_meta.outputs.built_at }}
+
             ### Downloads
             - **Linux**: `sweetspot-linux.tar.gz` (extract and run `bundle/sweetspot`)
             - **Windows**: `sweetspot-windows.zip` (extract and run `sweetspot.exe`)
             - **macOS**: `sweetspot-macos.zip` (extract and open `sweetspot.app`)
-            
+
             ### Changelog
             See commit history for changes since previous release.
           files: |
@@ -157,4 +171,3 @@ jobs:
             artifacts/sweetspot-macos/sweetspot-macos.zip
           draft: false
           prerelease: false
-
